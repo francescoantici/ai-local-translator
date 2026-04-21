@@ -7,6 +7,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "form-data": "^4.0.5",
     "multer": "^2.1.1",
     "node-fetch": "^3.3.2"
   }

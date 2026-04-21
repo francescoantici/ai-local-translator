@@ -97,7 +97,7 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
 
     // Arguments to interpolate the string with
     const data_args = {"sourceLang":sourceLang, "targetLang":targetLang}
-    
+
     // Interpolation of the prompt
     const systemPrompt = fs.readFileSync(SYSTEM_PROMPT_FILE, 'utf8').replace(/\$\{([^}]+)\}/g, (match, key) => {
       return data_args[key] !== undefined ? data_args[key] : match;
@@ -111,7 +111,6 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
     let userContent = [];
 
     if (file) {
-      console.log("file")
       const mimeType = file.mimetype;
       const base64 = file.buffer.toString("base64");
 
