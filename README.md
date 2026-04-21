@@ -1,4 +1,4 @@
-# AI Offline Translator
+# AI Local Translator
 
 A Google Translate–style web app powered by any OpenAI-compatible API.
 
