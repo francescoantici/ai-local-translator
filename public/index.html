@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Translator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #e53935;
+      --red-dark: #c62828;
+      --red-light: #ffebee;
+      --red-mid: #ef9a9a;
+      --black: #1a1a1a;
+      --gray-90: #2c2c2c;
+      --gray-60: #666666;
+      --gray-40: #999999;
+      --gray-20: #e0e0e0;
+      --gray-10: #f5f5f5;
+      --white: #ffffff;
+      --green: #2e7d32;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--white);
+      color: var(--black);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+    }
+
+    /* ─── Header ─── */
+    header {
+      background: var(--red);
+      padding: 0 40px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .site-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .site-title svg {
+      width: 22px; height: 22px;
+      opacity: 0.9;
+    }
+
+    .config-badge {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      padding: 4px 12px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.9);
+    }
+    .config-badge.ok { background: rgba(255,255,255,0.2); }
+    .config-badge.err { background: rgba(0,0,0,0.2); }
+    .config-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .config-badge.ok .dot { background: #a5d6a7; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    /* ─── Main ─── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 32px 40px;
+    }
+
+    /* ─── Language bar ─── */
+    .lang-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--gray-20);
+      margin-bottom: 0;
+    }
+
+    .lang-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .lang-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray-40);
+      white-space: nowrap;
+    }
+
+    /* ─── Custom searchable dropdown ─── */
+    .lang-picker {
+      position: relative;
+      flex: 1;
+      max-width: 260px;
+    }
+
+    .lang-picker-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-20);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--black);
+      transition: border-color 0.15s;
+      text-align: left;
+    }
+    .lang-picker-btn:hover { border-color: var(--gray-40); }
+    .lang-picker-btn.open { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-light); }
+    .lang-picker-btn .chevron {
+      width: 16px; height: 16px;
+      flex-shrink: 0;
+      color: var(--gray-40);
+      transition: transform 0.2s;
+    }
+    .lang-picker-btn.open .chevron { transform: rotate(180deg); }
+    .lang-picker-btn .btn-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .lang-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      width: 280px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-20);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      z-index: 200;
+      overflow: hidden;
+    }
+    .lang-dropdown.open { display: block; }
+
+    .lang-search-wrap {
+      padding: 10px;
+      border-bottom: 1px solid var(--gray-20);
+      background: var(--gray-10);
+    }
+
+    .lang-search {
+      width: 100%;
+      padding: 7px 10px 7px 30px;
+      border: 1.5px solid var(--gray-20);
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      outline: none;
+      background: var(--white);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 8px center;
+      transition: border-color 0.15s;
+    }
+    .lang-search:focus { border-color: var(--red); }
+    .lang-search::placeholder { color: var(--gray-40); }
+
+    .lang-list {
+      max-height: 260px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .lang-list::-webkit-scrollbar { width: 4px; }
+    .lang-list::-webkit-scrollbar-thumb { background: var(--gray-20); border-radius: 4px; }
+
+    .lang-opt {
+      padding: 9px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.1s;
+    }
+    .lang-opt:hover { background: var(--red-light); }
+    .lang-opt.selected { background: var(--red-light); color: var(--red-dark); font-weight: 500; }
+    .lang-opt .lang-code {
+      font-size: 0.7rem;
+      color: var(--gray-40);
+      font-family: monospace;
+      min-width: 22px;
+    }
+    .lang-opt.selected .lang-code { color: var(--red); }
+
+    .lang-separator {
+      height: 1px;
+      background: var(--gray-20);
+      margin: 4px 0;
+    }
+    .lang-separator-label {
+      padding: 4px 14px 2px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray-40);
+    }
+
+    .lang-no-results {
+      padding: 16px 14px;
+      font-size: 0.82rem;
+      color: var(--gray-40);
+      text-align: center;
+    }
+
+    /* ─── Swap ─── */
+    .swap-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1.5px solid var(--gray-20);
+      background: var(--white);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray-60);
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .swap-btn:hover { border-color: var(--red); color: var(--red); transform: rotate(180deg); }
+    .swap-btn svg { width: 16px; height: 16px; }
+
+    /* ─── Panels ─── */
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1.5px solid var(--gray-20);
+      border-top: none;
+      min-height: 420px;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel:first-child {
+      border-right: 1.5px solid var(--gray-20);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--gray-20);
+      background: var(--gray-10);
+    }
+
+    .panel-lang {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--gray-60);
+    }
+
+    .panel-actions { display: flex; gap: 6px; }
+
+    .icon-btn {
+      background: none;
+      border: 1px solid var(--gray-20);
+      border-radius: 6px;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--gray-40);
+      transition: all 0.15s;
+    }
+    .icon-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-light); }
+    .icon-btn svg { width: 13px; height: 13px; }
+
+    .panel-content { flex: 1; display: flex; flex-direction: column; }
+
+    textarea {
+      flex: 1;
+      min-height: 280px;
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 18px;
+      font-family: 'Noto Serif JP', serif;
+      font-size: 1rem;
+      font-weight: 300;
+      line-height: 1.8;
+      background: transparent;
+      color: var(--black);
+      width: 100%;
+    }
+    textarea::placeholder { color: var(--gray-40); }
+
+    .output-area {
+      flex: 1;
+      min-height: 280px;
+      padding: 18px;
+      font-family: 'Noto Serif JP', serif;
+      font-size: 1rem;
+      font-weight: 300;
+      line-height: 1.8;
+      color: var(--black);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .output-placeholder { color: var(--gray-40); font-style: italic; }
+
+    /* ─── Attachments ─── */
+    .attachments-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--gray-20);
+      background: var(--gray-10);
+      flex-wrap: wrap;
+    }
+
+    .attach-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray-40);
+    }
+
+    .attach-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: var(--white);
+      border: 1px solid var(--gray-20);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--gray-60);
+      transition: all 0.15s;
+    }
+    .attach-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-light); }
+    .attach-btn svg { width: 12px; height: 12px; }
+
+    .file-chip {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 8px;
+      background: var(--red-light);
+      border-radius: 6px;
+      font-size: 0.68rem;
+      max-width: 150px;
+      color: var(--red-dark);
+    }
+    .file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-chip .remove { cursor: pointer; color: var(--red); font-size: 0.85rem; flex-shrink: 0; }
+
+    .preview-area {
+      padding: 10px 14px;
+      border-top: 1px dashed var(--gray-20);
+    }
+    .preview-area img { max-height: 110px; max-width: 100%; border-radius: 6px; object-fit: contain; border: 1px solid var(--gray-20); }
+    .preview-area audio { width: 100%; height: 30px; }
+
+    /* ─── Translate bar ─── */
+    .translate-bar {
+      padding: 18px 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .translate-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 11px 28px;
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 2px 6px rgba(229,57,53,0.35);
+    }
+    .translate-btn:hover { background: var(--red-dark); }
+    .translate-btn:active { transform: scale(0.98); }
+    .translate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .translate-btn svg { width: 15px; height: 15px; }
+
+    .char-count {
+      font-size: 0.68rem;
+      color: var(--gray-40);
+    }
+
+    .model-selector {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .model-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray-40);
+    }
+    .model-select {
+      appearance: none;
+      background: var(--gray-10);
+      border: 1px solid var(--gray-20);
+      border-radius: 6px;
+      padding: 5px 26px 5px 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      color: var(--black);
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      max-width: 200px;
+      transition: border-color 0.15s;
+    }
+    .model-select:focus { border-color: var(--red); }
+    .model-select:disabled { opacity: 0.5; }
+    .model-loading { font-size: 0.68rem; color: var(--gray-40); font-style: italic; }
+
+    /* ─── Loader ─── */
+    .loader { display: none; gap: 4px; align-items: center; padding: 18px; }
+    .loader.visible { display: flex; }
+    .loader-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--red-mid);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+    .loader-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loader-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+    /* ─── Toast ─── */
+    .toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--gray-90);
+      color: var(--white);
+      padding: 12px 18px;
+      font-size: 0.78rem;
+      border-radius: 8px;
+      max-width: 360px;
+      border-left: 3px solid var(--red);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      opacity: 0; transform: translateY(12px);
+      transition: all 0.3s ease;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @keyframes flash { 0%{background:var(--red-light)} 100%{background:transparent} }
+    .flash { animation: flash 0.5s ease; }
+
+    @media (max-width: 768px) {
+      header { padding: 0 20px; }
+      main { padding: 16px 16px 32px; }
+      .panels { grid-template-columns: 1fr; }
+      .panel:first-child { border-right: none; border-bottom: 1.5px solid var(--gray-20); }
+      .lang-picker { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="site-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/>
+    </svg>
+    AI Translator
+  </div>
+  <div class="config-badge err" id="configBadge">
+    <span class="dot"></span>
+    <span id="configText">Checking…</span>
+  </div>
+</header>
+
+<main>
+  <!-- Language bar -->
+  <div class="lang-bar">
+    <div class="lang-group">
+      <span class="lang-label">From</span>
+      <div class="lang-picker" id="sourcePicker">
+        <button class="lang-picker-btn" id="sourcePickerBtn">
+          <span class="btn-text" id="sourcePickerText">Loading…</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="lang-dropdown" id="sourceDropdown">
+          <div class="lang-search-wrap">
+            <input class="lang-search" type="text" placeholder="Search languages…" id="sourceSearch" />
+          </div>
+          <div class="lang-list" id="sourceList"></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="swap-btn" id="swapBtn" title="Swap languages">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
+      </svg>
+    </button>
+
+    <div class="lang-group">
+      <span class="lang-label">To</span>
+      <div class="lang-picker" id="targetPicker">
+        <button class="lang-picker-btn" id="targetPickerBtn">
+          <span class="btn-text" id="targetPickerText">Loading…</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="lang-dropdown" id="targetDropdown">
+          <div class="lang-search-wrap">
+            <input class="lang-search" type="text" placeholder="Search languages…" id="targetSearch" />
+          </div>
+          <div class="lang-list" id="targetList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panels -->
+  <div class="panels">
+    <!-- Input -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-lang" id="sourceLabel">—</span>
+        <div class="panel-actions">
+          <button class="icon-btn" id="clearBtn" title="Clear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="panel-content">
+        <textarea id="inputText" placeholder="Type or paste text to translate… (Ctrl+Enter to translate)" spellcheck="false"></textarea>
+        <div class="preview-area" id="inputPreview" style="display:none;"></div>
+        <div class="attachments-bar">
+          <span class="attach-label">Attach</span>
+          <button class="attach-btn" id="imgBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+            </svg>
+            Image
+          </button>
+          <button class="attach-btn" id="audioBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+            </svg>
+            Audio
+          </button>
+          <div class="file-chip" id="fileChip" style="display:none;">
+            <span id="fileName"></span>
+            <span class="remove" id="removeFile">✕</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-lang" id="targetLabel">—</span>
+        <div class="panel-actions">
+          <button class="icon-btn" id="copyBtn" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="panel-content">
+        <div class="loader" id="loader">
+          <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
+          <span style="font-size:0.72rem;color:var(--gray-40);margin-left:8px;">Translating…</span>
+        </div>
+        <div class="output-area" id="outputArea">
+          <span class="output-placeholder">Translation will appear here…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action bar -->
+  <div class="translate-bar">
+    <button class="translate-btn" id="translateBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/>
+      </svg>
+      Translate
+    </button>
+    <span class="char-count" id="charCount">0 chars</span>
+    <div class="model-selector">
+      <span class="model-label">Model</span>
+      <span class="model-loading" id="modelLoading">Loading…</span>
+      <select class="model-select" id="modelSelect" style="display:none"></select>
+    </div>
+  </div>
+</main>
+
+<input type="file" id="imgInput" accept="image/*" style="display:none" />
+<input type="file" id="audioInput" accept="audio/*" style="display:none" />
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── DOM refs ──
+  const swapBtn       = document.getElementById('swapBtn');
+  const inputText     = document.getElementById('inputText');
+  const outputArea    = document.getElementById('outputArea');
+  const loader        = document.getElementById('loader');
+  const translateBtn  = document.getElementById('translateBtn');
+  const charCount     = document.getElementById('charCount');
+  const copyBtn       = document.getElementById('copyBtn');
+  const clearBtn      = document.getElementById('clearBtn');
+  const configBadge   = document.getElementById('configBadge');
+  const configText    = document.getElementById('configText');
+  const toast         = document.getElementById('toast');
+  const fileChip      = document.getElementById('fileChip');
+  const fileName      = document.getElementById('fileName');
+  const removeFile    = document.getElementById('removeFile');
+  const inputPreview  = document.getElementById('inputPreview');
+  const imgBtn        = document.getElementById('imgBtn');
+  const audioBtn      = document.getElementById('audioBtn');
+  const imgInput      = document.getElementById('imgInput');
+  const audioInput    = document.getElementById('audioInput');
+  const modelSelect   = document.getElementById('modelSelect');
+  const modelLoading  = document.getElementById('modelLoading');
+  const sourceLabel   = document.getElementById('sourceLabel');
+  const targetLabel   = document.getElementById('targetLabel');
+
+  let attachedFile  = null;
+  let translatedText = '';
+
+  // ── Pinned languages (shown at top of every dropdown) ──
+  const PINNED = [
+    { code: 'en', name: 'English' },
+    { code: 'ja', name: 'Japanese' },
+  ];
+
+  // ── Language picker state ──
+  const pickers = {
+    source: {
+      btn:      document.getElementById('sourcePickerBtn'),
+      btnText:  document.getElementById('sourcePickerText'),
+      dropdown: document.getElementById('sourceDropdown'),
+      search:   document.getElementById('sourceSearch'),
+      list:     document.getElementById('sourceList'),
+      value:    'en',
+      name:     'English',
+    },
+    target: {
+      btn:      document.getElementById('targetPickerBtn'),
+      btnText:  document.getElementById('targetPickerText'),
+      dropdown: document.getElementById('targetDropdown'),
+      search:   document.getElementById('targetSearch'),
+      list:     document.getElementById('targetList'),
+      value:    'ja',
+      name:     'Japanese',
+    },
+  };
+
+  let allLanguages = [];
+
+  function renderList(picker, filterText) {
+    const q = filterText.trim().toLowerCase();
+    picker.list.innerHTML = '';
+
+    const matches = q
+      ? allLanguages.filter(l => l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q))
+      : allLanguages;
+
+    const pinned = q ? [] : PINNED;
+    const rest   = q ? matches : matches.filter(l => !PINNED.some(p => p.code === l.code));
+
+    if (pinned.length) {
+      const lbl = document.createElement('div');
+      lbl.className = 'lang-separator-label';
+      lbl.textContent = 'Common';
+      picker.list.appendChild(lbl);
+
+      pinned.forEach(lang => appendOpt(picker, lang));
+
+      const sep = document.createElement('div');
+      sep.className = 'lang-separator';
+      picker.list.appendChild(sep);
+
+      const lbl2 = document.createElement('div');
+      lbl2.className = 'lang-separator-label';
+      lbl2.textContent = 'All languages';
+      picker.list.appendChild(lbl2);
+    }
+
+    if (rest.length === 0 && pinned.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'lang-no-results';
+      empty.textContent = 'No languages found';
+      picker.list.appendChild(empty);
+      return;
+    }
+
+    rest.forEach(lang => appendOpt(picker, lang));
+  }
+
+  function appendOpt(picker, lang) {
+    const el = document.createElement('div');
+    el.className = 'lang-opt' + (lang.code === picker.value ? ' selected' : '');
+    el.innerHTML = `<span class="lang-code">${lang.code}</span><span>${lang.name}</span>`;
+    el.addEventListener('click', () => {
+      selectLang(picker, lang.code, lang.name);
+      closePicker(picker);
+    });
+    picker.list.appendChild(el);
+  }
+
+  function selectLang(picker, code, name) {
+    picker.value = code;
+    picker.name  = name;
+    picker.btnText.textContent = name;
+    syncLabels();
+  }
+
+  function syncLabels() {
+    sourceLabel.textContent = pickers.source.name;
+    targetLabel.textContent = pickers.target.name;
+  }
+
+  function openPicker(picker) {
+    closePicker(pickers.source);
+    closePicker(pickers.target);
+    picker.dropdown.classList.add('open');
+    picker.btn.classList.add('open');
+    renderList(picker, '');
+    picker.search.value = '';
+    picker.search.focus();
+  }
+
+  function closePicker(picker) {
+    picker.dropdown.classList.remove('open');
+    picker.btn.classList.remove('open');
+  }
+
+  Object.values(pickers).forEach(picker => {
+    picker.btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = picker.dropdown.classList.contains('open');
+      isOpen ? closePicker(picker) : openPicker(picker);
+    });
+    picker.search.addEventListener('input', () => renderList(picker, picker.search.value));
+    picker.search.addEventListener('keydown', e => { if (e.key === 'Escape') closePicker(picker); });
+    picker.dropdown.addEventListener('click', e => e.stopPropagation());
+  });
+
+  document.addEventListener('click', () => {
+    closePicker(pickers.source);
+    closePicker(pickers.target);
+  });
+
+  // ── Swap ──
+  swapBtn.addEventListener('click', () => {
+    const sc = pickers.source.value, sn = pickers.source.name;
+    const tc = pickers.target.value, tn = pickers.target.name;
+    selectLang(pickers.source, tc, tn);
+    selectLang(pickers.target, sc, sn);
+    if (translatedText) {
+      inputText.value = translatedText;
+      updateCharCount();
+      outputArea.innerHTML = '<span class="output-placeholder">Translation will appear here…</span>';
+      translatedText = '';
+    }
+  });
+
+  // ── Bootstrap ──
+  (async () => {
+    const [configData, langData] = await Promise.all([
+      fetch('/api/config').then(r => r.json()).catch(() => ({})),
+      fetch('/api/languages').then(r => r.json()).catch(() => ({ languages: [] })),
+    ]);
+
+    if (configData.configured) {
+      configBadge.className = 'config-badge ok';
+      configText.textContent = 'API connected';
+      loadModels(configData.defaultModel);
+    } else {
+      configBadge.className = 'config-badge err';
+      configText.textContent = configData.configured === false ? 'API not configured' : 'Server error';
+      modelLoading.textContent = 'No API key';
+    }
+
+    allLanguages = langData.languages || [];
+    if (langData.fallback) console.warn('Fallback language list:', langData.error);
+
+    // Set initial display names
+    pickers.source.btnText.textContent = pickers.source.name;
+    pickers.target.btnText.textContent = pickers.target.name;
+    syncLabels();
+  })();
+
+  async function loadModels(defaultModel) {
+    try {
+      const res  = await fetch('/api/models');
+      const data = await res.json();
+      if (data.error || !data.models?.length) { modelLoading.textContent = defaultModel || '—'; return; }
+      modelLoading.style.display = 'none';
+      modelSelect.style.display  = '';
+      data.models.forEach(id => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = id;
+        if (id === defaultModel) opt.selected = true;
+        modelSelect.appendChild(opt);
+      });
+      if (!modelSelect.value && data.models.length) modelSelect.value = data.models[0];
+    } catch { modelLoading.textContent = defaultModel || '—'; }
+  }
+
+  // ── Char count ──
+  function updateCharCount() {
+    const n = inputText.value.length;
+    charCount.textContent = `${n.toLocaleString()} char${n !== 1 ? 's' : ''}`;
+  }
+  inputText.addEventListener('input', updateCharCount);
+
+  // ── Clear ──
+  clearBtn.addEventListener('click', () => {
+    inputText.value = '';
+    updateCharCount();
+    clearAttachment();
+    outputArea.innerHTML = '<span class="output-placeholder">Translation will appear here…</span>';
+    translatedText = '';
+  });
+
+  // ── Attachments ──
+  imgBtn.addEventListener('click', () => imgInput.click());
+  audioBtn.addEventListener('click', () => audioInput.click());
+  imgInput.addEventListener('change', () => handleFile(imgInput.files[0]));
+  audioInput.addEventListener('change', () => handleFile(audioInput.files[0]));
+
+  function handleFile(file) {
+    if (!file) return;
+    attachedFile = file;
+    fileName.textContent = file.name;
+    fileChip.style.display = 'flex';
+    inputPreview.style.display = 'block';
+    inputPreview.innerHTML = '';
+    const url = URL.createObjectURL(file);
+    if (file.type.startsWith('image/')) {
+      const img = document.createElement('img'); img.src = url; inputPreview.appendChild(img);
+    } else if (file.type.startsWith('audio/')) {
+      const audio = document.createElement('audio'); audio.controls = true; audio.src = url; inputPreview.appendChild(audio);
+    }
+  }
+
+  function clearAttachment() {
+    attachedFile = null;
+    fileChip.style.display = 'none';
+    inputPreview.style.display = 'none';
+    inputPreview.innerHTML = '';
+    imgInput.value = '';
+    audioInput.value = '';
+  }
+
+  removeFile.addEventListener('click', clearAttachment);
+
+  // ── Toast ──
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 4000);
+  }
+
+  // ── Copy ──
+  copyBtn.addEventListener('click', () => {
+    if (!translatedText) return;
+    navigator.clipboard.writeText(translatedText).then(() => {
+      outputArea.classList.add('flash');
+      setTimeout(() => outputArea.classList.remove('flash'), 500);
+    });
+  });
+
+  // ── Translate ──
+  translateBtn.addEventListener('click', translate);
+  inputText.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) translate(); });
+
+  async function translate() {
+    const text = inputText.value.trim();
+    if (!text && !attachedFile) { showToast('Please enter text or attach a file.'); return; }
+
+    translateBtn.disabled = true;
+    loader.classList.add('visible');
+    outputArea.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('sourceLang',     pickers.source.name);
+    formData.append('sourceLangCode', pickers.source.value);
+    formData.append('targetLang',     pickers.target.name);
+    formData.append('targetLangCode', pickers.target.value);
+    formData.append('model',          modelSelect.value || '');
+    if (text)         formData.append('text', text);
+    if (attachedFile) formData.append('file', attachedFile);
+
+    try {
+      const res  = await fetch('/api/translate', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showToast(data.error || 'Translation failed. Check your API configuration.');
+      } else {
+        translatedText = data.translation;
+        outputArea.textContent = translatedText;
+      }
+    } catch (err) {
+      showToast('Network error: ' + err.message);
+    } finally {
+      loader.classList.remove('visible');
+      outputArea.style.display = '';
+      translateBtn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
