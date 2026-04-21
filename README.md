@@ -3,7 +3,7 @@
 A Google Translate–style web app powered by any OpenAI-compatible API.
 
 ## Features
-- Translate between **English, Japanese, Chinese, Italian and Spanish**
+- Translate between user selected languages
 - Paste text or type directly
 - Attach **images** (AI extracts and translates visible text)
 - Attach **audio** (transcribed via Whisper if available, then translated)
