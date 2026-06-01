@@ -41,8 +41,8 @@ A Google Translate–style web app powered by any OpenAI-compatible API.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `OPENAI_API_KEY` | ✅ | — | Your API key |
-| `OPENAI_API_URL` | ❌ | `https://api.openai.com` | Base URL of OpenAI-compatible API |
-| `OPENAI_MODEL` | ❌ | `gpt-4o` | Model name to use for translation |
+| `OPENAI_API_URL` | ✅ | `https://api.openai.com` | Base URL of OpenAI-compatible API |
+| `OPENAI_MODEL` | ✅ | `gpt-4o` | Model name to use for translation |
 | `PORT` | ❌ | `3000` | Port for the web server |
 
 ## Compatible APIs

@@ -628,11 +628,11 @@
       Translate
     </button>
     <span class="char-count" id="charCount">0 chars</span>
-    <div class="model-selector">
+    <!-- <div class="model-selector">
       <span class="model-label">Model</span>
       <span class="model-loading" id="modelLoading">Loading…</span>
       <select class="model-select" id="modelSelect" style="display:none"></select>
-    </div>
+    </div> -->
   </div>
 </main>
 
@@ -661,7 +661,7 @@
   const audioBtn      = document.getElementById('audioBtn');
   const imgInput      = document.getElementById('imgInput');
   const audioInput    = document.getElementById('audioInput');
-  const modelSelect   = document.getElementById('modelSelect');
+  // const modelSelect   = document.getElementById('modelSelect');
   const modelLoading  = document.getElementById('modelLoading');
   const sourceLabel   = document.getElementById('sourceLabel');
   const targetLabel   = document.getElementById('targetLabel');
@@ -817,7 +817,7 @@
     if (configData.configured) {
       configBadge.className = 'config-badge ok';
       configText.textContent = 'API connected';
-      loadModels(configData.defaultModel);
+      // loadModels(configData.defaultModel);
     } else {
       configBadge.className = 'config-badge err';
       configText.textContent = configData.configured === false ? 'API not configured' : 'Server error';
@@ -833,22 +833,22 @@
     syncLabels();
   })();
 
-  async function loadModels(defaultModel) {
-    try {
-      const res  = await fetch('/api/models');
-      const data = await res.json();
-      if (data.error || !data.models?.length) { modelLoading.textContent = defaultModel || '—'; return; }
-      modelLoading.style.display = 'none';
-      modelSelect.style.display  = '';
-      data.models.forEach(id => {
-        const opt = document.createElement('option');
-        opt.value = opt.textContent = id;
-        if (id === defaultModel) opt.selected = true;
-        modelSelect.appendChild(opt);
-      });
-      if (!modelSelect.value && data.models.length) modelSelect.value = data.models[0];
-    } catch { modelLoading.textContent = defaultModel || '—'; }
-  }
+  // async function loadModels(defaultModel) {
+  //   try {
+  //     const res  = await fetch('/api/models');
+  //     const data = await res.json();
+  //     if (data.error || !data.models?.length) { modelLoading.textContent = defaultModel || '—'; return; }
+  //     modelLoading.style.display = 'none';
+  //     modelSelect.style.display  = '';
+  //     data.models.forEach(id => {
+  //       const opt = document.createElement('option');
+  //       opt.value = opt.textContent = id;
+  //       if (id === defaultModel) opt.selected = true;
+  //       modelSelect.appendChild(opt);
+  //     });
+  //     if (!modelSelect.value && data.models.length) modelSelect.value = data.models[0];
+  //   } catch { modelLoading.textContent = defaultModel || '—'; }
+  // }
 
   // ── Char count ──
   function updateCharCount() {
@@ -931,7 +931,7 @@
     formData.append('sourceLangCode', pickers.source.value);
     formData.append('targetLang',     pickers.target.name);
     formData.append('targetLangCode', pickers.target.value);
-    formData.append('model',          modelSelect.value || '');
+    formData.append('model',          '');
     if (text)         formData.append('text', text);
     if (attachedFile) formData.append('file', attachedFile);
 
