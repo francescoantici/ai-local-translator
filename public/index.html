@@ -811,7 +811,7 @@
   (async () => {
     const [configData, langData] = await Promise.all([
       fetch('/api/config').then(r => r.json()).catch(() => ({})),
-      fetch('/api/languages').then(r => r.json()).catch(() => ({ languages: [] })),
+      fetch('/api/languages').then(r => r.json()).catch(() => ({ languages: [], error: 'Failed to load languages' })),
     ]);
 
     if (configData.configured) {
@@ -825,7 +825,7 @@
     }
 
     allLanguages = langData.languages || [];
-    if (langData.fallback) console.warn('Fallback language list:', langData.error);
+    if (langData.error) console.warn('Language list error:', langData.error);
 
     // Set initial display names
     pickers.source.btnText.textContent = pickers.source.name;
