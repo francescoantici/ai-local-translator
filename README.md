@@ -26,6 +26,7 @@ A Google Translate–style web app powered by any OpenAI-compatible API.
    OPENAI_API_KEY=sk-...                   # your API key
    OPENAI_MODEL=gpt-4o                     # optional, default model to use
    PORT=3000                               # optional, default 3000
+   BASE_PATH=/<base_path>                  # optional, path to serve the index file to
    ```
 
    By setting the `SYSTEM_PROMPT_FILE` variable it is possible to use a different system prompt. The default one is in `prompts/default_system_prompt.txt`
