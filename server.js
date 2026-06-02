@@ -10,7 +10,6 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*", methods: ["GET", "POST"] }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
 
 const API_URL = process.env.OPENAI_API_URL || "https://api.openai.com";
 const API_KEY = process.env.OPENAI_API_KEY || "";
@@ -171,5 +170,26 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
 });
 
 
+const BASE_PATH = process.env.BASE_PATH || "/home";
+
+// Redirect root to base path
+if (BASE_PATH !== "/") {
+  app.get("/", (_req, res) => res.redirect(BASE_PATH));
+}
+
+// Serve index.html with BASE_PATH placeholder replaced
+app.get(BASE_PATH + "/", (_req, res) => {
+  const html = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+  res.send(html.replace(/\{\{BASE_PATH\}\}/g, BASE_PATH));
+});
+
+// Serve index.html for exact base path match (no trailing slash)
+app.get(BASE_PATH, (_req, res) => {
+  const html = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+  res.send(html.replace(/\{\{BASE_PATH\}\}/g, BASE_PATH));
+});
+
+app.use(BASE_PATH, express.static(path.join(__dirname, "public")));
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Translator running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Translator running on http://localhost:${PORT}${BASE_PATH}`));
