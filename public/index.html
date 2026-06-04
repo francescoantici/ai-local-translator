@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Translator</title>
   <script>window.__BASE_PATH__ = "{{BASE_PATH}}";</script>
-  <script>if(window.__BASE_PATH__ && window.__BASE_PATH__ !== "{{BASE_PATH}"){const b=document.createElement('base');b.href=window.__BASE_PATH__;document.head.appendChild(b);}</script>
+  <script>if (window.__BASE_PATH__ && window.__BASE_PATH__ !== "{{BASE_PATH}") { const b = document.createElement('base'); b.href = window.__BASE_PATH__; document.head.appendChild(b); }</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -22,10 +22,10 @@
     }
 
     :root {
-      --red: #e53935;
-      --red-dark: #c62828;
-      --red-light: #ffebee;
-      --red-mid: #ef9a9a;
+      --red: rgb(39, 42, 94);
+      --red-dark: rgb(28, 30, 67);
+      --red-light: rgb(210, 212, 240);
+      --red-mid: rgb(137, 139, 185);
       --black: #1a1a1a;
       --gray-90: #2c2c2c;
       --gray-60: #666666;
@@ -75,6 +75,11 @@
 
     .header-actions .icon-btn {
       overflow: visible;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    [data-theme="dark"] .header-actions .icon-btn {
+      color: rgba(255, 255, 255, 0.6);
     }
 
     .icon-btn {
@@ -100,7 +105,7 @@
     .site-title {
       font-size: 1.15rem;
       font-weight: 600;
-      color: var(--white);
+      color: #ffffff;
       letter-spacing: -0.01em;
       display: flex;
       align-items: center;
@@ -134,6 +139,15 @@
       background: rgba(0, 0, 0, 0.2);
     }
 
+    [data-theme="dark"] .config-badge {
+      background: rgba(0, 0, 0, 0.3);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    [data-theme="dark"] .config-badge.ok {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
     .config-badge .dot {
       width: 7px;
       height: 7px;
@@ -165,30 +179,11 @@
       padding: 24px 32px 40px;
     }
 
-    /* ─── Language bar ─── */
-    .lang-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--gray-20);
-      margin-bottom: 0;
-    }
-
-    .lang-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-    }
-
+    /* ─── Language bar (hidden - inline pickers now) ─── */
+    .lang-bar,
+    .lang-group,
     .lang-label {
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--gray-40);
-      white-space: nowrap;
+      display: none;
     }
 
     /* ─── Custom searchable dropdown ─── */
@@ -215,6 +210,87 @@
       color: var(--black);
       transition: border-color 0.15s;
       text-align: left;
+    }
+
+    /* ─── Inline lang picker in panels ─── */
+    .panel-header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-lang {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gray-60);
+      white-space: nowrap;
+    }
+
+    .inline-lang-picker {
+      position: relative;
+      min-width: 140px;
+    }
+
+    .inline-lang-picker-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--white);
+      border: 1px solid var(--gray-20);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      color: var(--black);
+    }
+
+    .inline-lang-picker-btn:hover {
+      border-color: var(--gray-40);
+    }
+
+    .inline-lang-picker-btn.open {
+      border-color: var(--red);
+      box-shadow: 0 0 0 2px var(--red-light);
+    }
+
+    .inline-lang-picker-btn .chevron {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      color: var(--gray-40);
+      transition: transform 0.2s;
+    }
+
+    .inline-lang-picker-btn.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .inline-lang-picker-btn .btn-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .inline-lang-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      width: 240px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-20);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    .inline-lang-dropdown.open {
+      display: block;
     }
 
     .lang-picker-btn:hover {
@@ -352,6 +428,82 @@
       color: var(--gray-40);
     }
 
+    /* ─── Inline lang picker in panels ─── */
+    .inline-lang-picker {
+      position: relative;
+      min-width: 140px;
+    }
+
+    .inline-lang-picker-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-20);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      color: var(--black);
+    }
+
+    .inline-lang-picker-btn:hover {
+      border-color: var(--gray-40);
+    }
+
+    .inline-lang-picker-btn.open {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px var(--red-light);
+    }
+
+    .inline-lang-picker-btn .chevron {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      color: var(--gray-40);
+      transition: transform 0.2s;
+    }
+
+    .inline-lang-picker-btn.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .inline-lang-picker-btn .btn-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .inline-lang-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      width: 240px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-20);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    .inline-lang-dropdown.open {
+      display: block;
+    }
+
+    .lang-separator-label {
+      padding: 4px 14px 2px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray-40);
+    }
+
     .lang-no-results {
       padding: 16px 14px;
       font-size: 0.82rem;
@@ -359,40 +511,16 @@
       text-align: center;
     }
 
-    /* ─── Swap ─── */
-    .swap-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: 1.5px solid var(--gray-20);
-      background: var(--white);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--gray-60);
-      flex-shrink: 0;
-      transition: all 0.2s;
-    }
-
-    .swap-btn:hover {
-      border-color: var(--red);
-      color: var(--red);
-      transform: rotate(180deg);
-    }
-
-    .swap-btn svg {
-      width: 16px;
-      height: 16px;
-    }
-
     /* ─── Panels ─── */
     .panels {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      border: 1.5px solid var(--gray-20);
-      border-top: none;
-      min-height: 420px;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 20px;
+      min-height: 460px;
+    }
+
+    .panels>* {
+      background: transparent;
     }
 
     .panel {
@@ -400,8 +528,24 @@
       flex-direction: column;
     }
 
-    .panel:first-child {
-      border-right: 1.5px solid var(--gray-20);
+    .panels-sep {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .panels-sep::after {
+      content: '';
+      width: 32px;
+      height: 32px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+      cursor: pointer;
+    }
+
+    .panels-sep:hover::after {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c93048' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4'/%3E%3C/svg%3E");
     }
 
     .panel-header {
@@ -409,8 +553,9 @@
       align-items: center;
       justify-content: space-between;
       padding: 10px 14px;
-      border-bottom: 1px solid var(--gray-20);
+      border-bottom: none;
       background: var(--gray-10);
+      border-radius: 12px 12px 0 0;
     }
 
     .panel-lang {
@@ -461,14 +606,36 @@
       border: none;
       outline: none;
       resize: none;
-      padding: 18px;
+      padding: 24px;
       font-family: 'Noto Serif JP', serif;
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 300;
       line-height: 1.8;
-      background: transparent;
+      background: var(--gray-10);
+      border-radius: 0 0 0 0;
       color: var(--black);
       width: 100%;
+    }
+
+    .panel-content.attachments-integrated {
+      position: relative;
+      background: var(--gray-10);
+    }
+
+    .attachments-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      border-top: 1px solid var(--gray-20);
+      background: var(--white);
+      border-radius: 0 0 12px 12px;
+      flex-wrap: wrap;
+    }
+
+    .preview-area {
+      padding: 10px 24px;
+      border-top: 1px dashed var(--gray-20);
     }
 
     textarea::placeholder {
@@ -478,14 +645,19 @@
     .output-area {
       flex: 1;
       min-height: 280px;
-      padding: 18px;
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 24px;
       font-family: 'Noto Serif JP', serif;
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 300;
       line-height: 1.8;
       color: var(--black);
       white-space: pre-wrap;
       word-break: break-word;
+      background: var(--gray-10);
+      border-radius: 0 0 12px 12px;
     }
 
     .output-placeholder {
@@ -543,12 +715,13 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      padding: 3px 8px;
-      background: var(--red-light);
+      padding: 4px 10px;
+      background: var(--white);
+      border: 1px solid var(--gray-20);
       border-radius: 6px;
-      font-size: 0.68rem;
+      font-size: 0.7rem;
       max-width: 150px;
-      color: var(--red-dark);
+      color: var(--black);
     }
 
     .file-chip span {
@@ -559,14 +732,19 @@
 
     .file-chip .remove {
       cursor: pointer;
-      color: var(--red);
+      color: var(--gray-40);
       font-size: 0.85rem;
       flex-shrink: 0;
     }
 
+    .file-chip:hover .remove {
+      color: var(--red);
+    }
+
     .preview-area {
-      padding: 10px 14px;
+      padding: 10px 24px;
       border-top: 1px dashed var(--gray-20);
+      background: var(--white);
     }
 
     .preview-area img {
@@ -596,7 +774,7 @@
       gap: 8px;
       padding: 11px 28px;
       background: var(--red);
-      color: var(--white);
+      color: #ffffff;
       border: none;
       border-radius: 8px;
       font-family: 'Inter', sans-serif;
@@ -605,7 +783,7 @@
       letter-spacing: 0.03em;
       cursor: pointer;
       transition: background 0.2s, transform 0.1s;
-      box-shadow: 0 2px 6px rgba(229, 57, 53, 0.35);
+      box-shadow: 0 2px 6px rgba(39, 42, 94, 0.5);
     }
 
     .translate-btn:hover {
@@ -770,15 +948,16 @@
 
       .panels {
         grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .panels-sep {
+        display: flex;
       }
 
       .panel:first-child {
         border-right: none;
-        border-bottom: 1.5px solid var(--gray-20);
-      }
-
-      .lang-picker {
-        max-width: none;
+        border-bottom: none;
       }
     }
   </style>
@@ -798,7 +977,8 @@
       <button class="icon-btn" id="themeToggle" data-tooltip="Switch to dark mode">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <circle cx="12" cy="12" r="5" />
-          <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m13.16 13.16l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          <path
+            d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m13.16 13.16l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
         </svg>
       </button>
       <div class="config-badge err" id="configBadge">
@@ -809,59 +989,28 @@
   </header>
 
   <main>
-    <!-- Language bar -->
-    <div class="lang-bar">
-      <div class="lang-group">
-        <span class="lang-label">From</span>
-        <div class="lang-picker" id="sourcePicker">
-          <button class="lang-picker-btn" id="sourcePickerBtn">
-            <span class="btn-text" id="sourcePickerText">Loading…</span>
-            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-          <div class="lang-dropdown" id="sourceDropdown">
-            <div class="lang-search-wrap">
-              <input class="lang-search" type="text" placeholder="Search languages…" id="sourceSearch" />
-            </div>
-            <div class="lang-list" id="sourceList"></div>
-          </div>
-        </div>
-      </div>
-
-      <button class="swap-btn" id="swapBtn" title="Swap languages">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-        </svg>
-      </button>
-
-      <div class="lang-group">
-        <span class="lang-label">To</span>
-        <div class="lang-picker" id="targetPicker">
-          <button class="lang-picker-btn" id="targetPickerBtn">
-            <span class="btn-text" id="targetPickerText">Loading…</span>
-            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-          <div class="lang-dropdown" id="targetDropdown">
-            <div class="lang-search-wrap">
-              <input class="lang-search" type="text" placeholder="Search languages…" id="targetSearch" />
-            </div>
-            <div class="lang-list" id="targetList"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Panels -->
     <div class="panels">
       <!-- Input -->
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-lang" id="sourceLabel">—</span>
+          <div class="panel-header-inner">
+            <span class="panel-lang">From</span>
+            <div class="inline-lang-picker" id="sourcePicker">
+              <button class="inline-lang-picker-btn" id="sourcePickerBtn">
+                <span class="btn-text" id="sourcePickerText">Loading…</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              <div class="inline-lang-dropdown" id="sourceDropdown">
+                <div class="lang-search-wrap">
+                  <input class="lang-search" type="text" placeholder="Search languages…" id="sourceSearch" />
+                </div>
+                <div class="lang-list" id="sourceList"></div>
+              </div>
+            </div>
+          </div>
           <div class="panel-actions">
             <button class="icon-btn" id="clearBtn" title="Clear">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -871,7 +1020,7 @@
           </div>
         </div>
         <div class="panel-content">
-          <textarea id="inputText" placeholder="Type or paste text to translate… (Ctrl+Enter to translate)"
+          <textarea id="inputText" placeholder="Type or paste text to translate… (Enter to translate)"
             spellcheck="false"></textarea>
           <div class="preview-area" id="inputPreview" style="display:none;"></div>
           <div class="attachments-bar">
@@ -900,10 +1049,29 @@
         </div>
       </div>
 
-      <!-- Output -->
+
+
+      <div class="panels-sep" id="swapBtn" title="Swap languages"></div>
+
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-lang" id="targetLabel">—</span>
+          <div class="panel-header-inner">
+            <span class="panel-lang">To</span>
+            <div class="inline-lang-picker" id="targetPicker">
+              <button class="inline-lang-picker-btn" id="targetPickerBtn">
+                <span class="btn-text" id="targetPickerText">Loading…</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              <div class="inline-lang-dropdown" id="targetDropdown">
+                <div class="lang-search-wrap">
+                  <input class="lang-search" type="text" placeholder="Search languages…" id="targetSearch" />
+                </div>
+                <div class="lang-list" id="targetList"></div>
+              </div>
+            </div>
+          </div>
           <div class="panel-actions">
             <button class="icon-btn" id="copyBtn" title="Copy">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -974,11 +1142,11 @@
     const audioInput = document.getElementById('audioInput');
     // const modelSelect   = document.getElementById('modelSelect');
     const modelLoading = document.getElementById('modelLoading');
-    const sourceLabel = document.getElementById('sourceLabel');
-    const targetLabel = document.getElementById('targetLabel');
 
     let attachedFile = null;
     let translatedText = '';
+    let sourceLangName = 'English';
+    let targetLangName = 'Japanese';
 
     // ── Pinned languages (shown at top of every dropdown) ──
     const PINNED = [
@@ -1065,12 +1233,6 @@
       picker.value = code;
       picker.name = name;
       picker.btnText.textContent = name;
-      syncLabels();
-    }
-
-    function syncLabels() {
-      sourceLabel.textContent = pickers.source.name;
-      targetLabel.textContent = pickers.target.name;
     }
 
     function openPicker(picker) {
@@ -1141,7 +1303,6 @@
       // Set initial display names
       pickers.source.btnText.textContent = pickers.source.name;
       pickers.target.btnText.textContent = pickers.target.name;
-      syncLabels();
 
       // ── Dark mode toggle ──
       const savedTheme = localStorage.getItem('theme');
