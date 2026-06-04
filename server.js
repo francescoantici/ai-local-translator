@@ -134,6 +134,13 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
         {
           role: "user",
           content: `<<<source>>>${sourceLangCode}<<<target>>>${targetLangCode}<<<text>>>${finalTextForGemma}`
+          /* [{
+            type: "text",
+            source_lang_code: `${sourceLangCode}`,
+            target_lang_code: `${targetLangCode}`,
+            text: `${finalTextForGemma}`,
+          }] */
+          //
         },
       ];
     } else {

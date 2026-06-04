@@ -36,6 +36,16 @@
       --green: #2e7d32;
     }
 
+    [data-theme="dark"] {
+      --black: #ffffff;
+      --gray-90: #e0e0e0;
+      --gray-60: #cccccc;
+      --gray-40: #555555;
+      --gray-20: #555555;
+      --gray-10: #333333;
+      --white: #000000;
+    }
+
     html,
     body {
       height: 100%;
@@ -55,6 +65,36 @@
       justify-content: space-between;
       gap: 16px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions .icon-btn {
+      overflow: visible;
+    }
+
+    .icon-btn {
+      position: relative;
+    }
+
+    .icon-btn:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 12px;
+      background: var(--gray-90);
+      color: var(--white);
+      font-size: 0.7rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      z-index: 300;
     }
 
     .site-title {
@@ -394,7 +434,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: var(--gray-40);
+      color: var(--gray-20);
       transition: all 0.15s;
     }
 
@@ -754,9 +794,17 @@
       </svg>
       AI Translator
     </div>
-    <div class="config-badge err" id="configBadge">
-      <span class="dot"></span>
-      <span id="configText">Checking…</span>
+    <div class="header-actions">
+      <button class="icon-btn" id="themeToggle" data-tooltip="Switch to dark mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="5" />
+          <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m13.16 13.16l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+      </button>
+      <div class="config-badge err" id="configBadge">
+        <span class="dot"></span>
+        <span id="configText">Checking…</span>
+      </div>
     </div>
   </header>
 
@@ -912,6 +960,7 @@
     const charCount = document.getElementById('charCount');
     const copyBtn = document.getElementById('copyBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const themeToggle = document.getElementById('themeToggle');
     const configBadge = document.getElementById('configBadge');
     const configText = document.getElementById('configText');
     const toast = document.getElementById('toast');
@@ -1093,6 +1142,28 @@
       pickers.source.btnText.textContent = pickers.source.name;
       pickers.target.btnText.textContent = pickers.target.name;
       syncLabels();
+
+      // ── Dark mode toggle ──
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+
+      document.documentElement.setAttribute('data-theme', initialTheme);
+
+      const updateTooltip = () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        themeToggle.setAttribute('data-tooltip', `Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} mode`);
+      };
+
+      themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateTooltip();
+      });
+
+      updateTooltip();
     })();
 
     // async function loadModels(defaultModel) {
@@ -1178,7 +1249,12 @@
 
     // ── Translate ──
     translateBtn.addEventListener('click', translate);
-    inputText.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) translate(); });
+    inputText.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        translate();
+      }
+    });
 
     async function translate() {
       const text = inputText.value.trim();
