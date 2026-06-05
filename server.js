@@ -14,7 +14,9 @@ app.use(express.json());
 const API_URL = process.env.OPENAI_API_URL || "https://api.openai.com";
 const API_KEY = process.env.OPENAI_API_KEY || "";
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
-const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE || "prompts/default_system_prompt.txt";
+const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE || "prompts/default_system_prompt";
+const SYSTEM_PROMPT_IMAGE_APPENDIX_FILE = process.env.SYSTEM_PROMPT_IMAGE_APPENDIX_FILE || "prompts/prompt_image_appendix";
+const SYSTEM_PROMPT_TEXT_APPENDIX_FILE = process.env.SYSTEM_PROMPT_TEXT_APPENDIX_FILE || "prompts/prompt_text_appendix";
 
 // ── Language list cache ──
 let languageCache = null;
@@ -67,6 +69,78 @@ app.get("/api/languages", (req, res) => {
   }
 });
 
+/*
+// PDF support disabled - client-side extraction via PDF.js now handles PDF text extraction
+async function pdfToImages(buffer, data_args, systemPrompt) {
+  return new Promise((resolve, reject) => {
+    const { spawn } = require('child_process');
+    const pdfPath = path.join(__dirname, `tmp_${Date.now()}_${data_args.sourceLang}.pdf`);
+    fs.writeFileSync(pdfPath, buffer);
+
+    const outputDir = path.join(__dirname, `tmp_pdf_pages_${Date.now()}`);
+    fs.mkdirSync(outputDir, { recursive: true });
+
+    const child = spawn('pdftoppm', ['-png', pdfPath, path.join(outputDir, 'page')]);
+
+    let stderr = '';
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    const images = [];
+
+    child.on('close', async (code) => {
+      if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+
+      if (code !== 0) {
+        try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+        reject(new Error(`PDF conversion failed: pdftoppm exited with code ${code}${stderr ? ': ' + stderr : ''}`));
+        return;
+      }
+
+      try {
+        const imageFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('.png'));
+        for (const imgFile of imageFiles) {
+          const imgBuffer = fs.readFileSync(path.join(outputDir, imgFile));
+          images.push(imgBuffer.toString('base64'));
+        }
+        fs.rmSync(outputDir, { recursive: true, force: true });
+      } catch (err) {
+        try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+        reject(err);
+        return;
+      }
+
+      const textAppendix = fs.readFileSync(SYSTEM_PROMPT_IMAGE_APPENDIX_FILE, 'utf8');
+      const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+        return data_args[key] !== undefined ? data_args[key] : match;
+      });
+
+      const userContent = [
+        { type: "text", text: systemPrompt + "\n" + finalText }
+      ];
+
+      for (const imageBytes of images) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: `data:image/png;base64,${imageBytes}`
+          }
+        });
+      }
+
+      resolve(userContent);
+    });
+
+    child.on('error', (err) => {
+      if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+      reject(new Error(`PDF conversion failed: ${err.message}`));
+    });
+  });
+}
+*/
+
 app.post("/api/translate", upload.single("file"), async (req, res) => {
   try {
     const { sourceLang, sourceLangCode, targetLang, targetLangCode, text, model } = req.body;
@@ -76,28 +150,49 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
     // Arguments to interpolate the string with
     const data_args = { "sourceLang": sourceLang, "targetLang": targetLang };
 
-    // Interpolation of the prompt
-    const systemPrompt = fs.readFileSync(SYSTEM_PROMPT_FILE, 'utf8').replace(/\$\{([^}]+)\}/g, (match, key) => {
+    // Load base system prompt
+    let systemPrompt = fs.readFileSync(SYSTEM_PROMPT_FILE, 'utf8').replace(/\$\{([^}]+)\}/g, (match, key) => {
       return data_args[key] !== undefined ? data_args[key] : match;
     });
 
-    if (!API_KEY) {
-      return res.status(500).json({ error: "API key not configured. Set OPENAI_API_KEY environment variable." });
+    // Validate: only text-only, image-only, or audio-only allowed (no combination)
+    const hasText = !!text;
+    const hasFile = !!file;
+
+    if (!hasText && !hasFile) {
+      return res.status(400).json({ error: "No content provided for translation." });
     }
 
-    let userContent = [];
-    let finalTextForGemma = ""; // Variable to track the text specifically for the Gemma layout
+    if (hasText && hasFile) {
+      return res.status(400).json({ error: "Please provide either text OR a file, not both." });
+    }
 
-    if (file) {
+    let userContent;
+
+    if (hasFile) {
       const mimeType = file.mimetype;
-      const base64 = file.buffer.toString("base64");
 
       if (mimeType.startsWith("image/")) {
-        userContent.push({ type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } });
-        const imgText = text ? `Also include this text in the translation: ${text}` : "Extract all text from this image and translate it.";
-        userContent.push({ type: "text", text: imgText });
-        finalTextForGemma = imgText;
+        // Image handling - use OpenAI multi-part format with image_url
+        const imageBytes = file.buffer.toString("base64");
+        const textAppendix = fs.readFileSync(SYSTEM_PROMPT_IMAGE_APPENDIX_FILE, 'utf8');
+        const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+          return data_args[key] !== undefined ? data_args[key] : match;
+        });
+        userContent = [
+          { type: "text", text: systemPrompt + "\n" + finalText },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${imageBytes}`
+            }
+          }
+        ];
+      // PDF handling disabled - client-side extraction now handles PDF text extraction
+      } else if (mimeType.startsWith("application/pdf") || file.originalname.toLowerCase().endsWith(".pdf")) {
+        return res.status(400).json({ error: "PDF upload disabled. Please extract text from the PDF and paste it into the text field." });
       } else if (mimeType.startsWith("audio/")) {
+        // Audio handling - transcribe first
         const FormData = (await import("form-data")).default;
         const { default: fetch } = await import("node-fetch");
         const formData = new FormData();
@@ -116,44 +211,30 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
         }
         const whisperData = await whisperRes.json();
         const transcribed = whisperData.text || "";
-        const audioText = `Transcribed audio: "${transcribed}"${text ? `\n\nAlso translate this text: ${text}` : ""}`;
-        userContent.push({ type: "text", text: audioText });
-        finalTextForGemma = audioText;
+
+        // Load text appendix for audio transcription context
+        const textAppendix = fs.readFileSync(SYSTEM_PROMPT_TEXT_APPENDIX_FILE, 'utf8');
+        const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+          return data_args[key] !== undefined ? data_args[key] : match;
+        }).replace(/\$\{text\}/g, transcribed);
+
+        userContent = [{ type: "text", text: finalText }];
       }
     } else if (text) {
-      userContent.push({ type: "text", text });
-      finalTextForGemma = text;
-    } else {
-      return res.status(400).json({ error: "No content provided for translation." });
+      // Text-only case
+      const textAppendix = fs.readFileSync(SYSTEM_PROMPT_TEXT_APPENDIX_FILE, 'utf8');
+      const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+        return data_args[key] !== undefined ? data_args[key] : match;
+      }).replace(/\$\{text\}/g, text);
+
+      userContent = [{ type: "text", text: finalText }];
     }
 
-    // --- START MODIFICATION FOR TRANSLATEGEMMA ---
-    let messages = [];
-    if (MODEL.toLowerCase().includes("translategemma")) {
-      messages = [
-        {
-          role: "user",
-          content: `<<<source>>>${sourceLangCode}<<<target>>>${targetLangCode}<<<text>>>${finalTextForGemma}`
-          /* [{
-            type: "text",
-            source_lang_code: `${sourceLangCode}`,
-            target_lang_code: `${targetLangCode}`,
-            text: `${finalTextForGemma}`,
-          }] */
-          //
-        },
-      ];
-    } else {
-      // Original layout for other models
-      messages = [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: userContent.length === 1 && userContent[0].type === "text" ? userContent[0].text : userContent
-        },
-      ];
-    }
-    // --- END MODIFICATION FOR TRANSLATEGEMMA ---
+    // Format request using standard OpenAI format with system and user messages
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent }
+    ];
 
     const { default: fetch } = await import("node-fetch");
     const apiRes = await fetch(`${API_URL}/v1/chat/completions`, {

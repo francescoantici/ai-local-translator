@@ -1,0 +1,1 @@
+Produce only the ${targetLang} translation, without any additional explanations or commentary. Please translate the following ${sourceLang} text into ${targetLang}.\n\n\n${text}

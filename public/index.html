@@ -642,6 +642,39 @@
       color: var(--gray-40);
     }
 
+    /* ─── Drag and Drop Zone ─── */
+    .drop-zone {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border: 2px dashed var(--red);
+      background: rgba(39, 42, 94, 0.1);
+      border-radius: 0 0 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s, background-color 0.2s;
+      z-index: 10;
+    }
+
+    .drop-zone.drag-over {
+      opacity: 1;
+      background: rgba(39, 42, 94, 0.15);
+    }
+
+    .drop-zone.drag-over span {
+      color: var(--red);
+    }
+
+    .drop-zone span {
+      font-size: 1rem;
+      color: var(--gray-40);
+    }
+
     .output-area {
       flex: 1;
       min-height: 280px;
@@ -1034,6 +1067,20 @@
               </svg>
               Image
             </button>
+            <!-- PDF upload disabled - client-side extraction via PDF.js is now the default for text -->
+            <!--
+            <button class="attach-btn" id="pdfBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              PDF
+            </button>
+            -->
             <button class="attach-btn" id="audioBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
@@ -1047,6 +1094,11 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Drag and Drop Zone for Input -->
+      <div class="drop-zone" id="inputDropZone">
+        <span>Drop file here to attach</span>
       </div>
 
 
@@ -1115,6 +1167,10 @@
   </main>
 
   <input type="file" id="imgInput" accept="image/*" style="display:none" />
+  <!-- PDF input disabled - client-side extraction via PDF.js now handles PDF text -->
+  <!--
+  <input type="file" id="pdfInput" accept="application/pdf" style="display:none" />
+  -->
   <input type="file" id="audioInput" accept="audio/*" style="display:none" />
   <div class="toast" id="toast"></div>
 
@@ -1137,13 +1193,20 @@
     const removeFile = document.getElementById('removeFile');
     const inputPreview = document.getElementById('inputPreview');
     const imgBtn = document.getElementById('imgBtn');
+    const pdfBtn = document.getElementById('pdfBtn');
     const audioBtn = document.getElementById('audioBtn');
     const imgInput = document.getElementById('imgInput');
+    const pdfInput = document.getElementById('pdfInput');
     const audioInput = document.getElementById('audioInput');
+    const inputDropZone = document.getElementById('inputDropZone');
     // const modelSelect   = document.getElementById('modelSelect');
     const modelLoading = document.getElementById('modelLoading');
 
     let attachedFile = null;
+    // Store extracted PDF text and filename
+    let attachedFileText = '';
+    let attachedFileName = '';
+
     let translatedText = '';
     let sourceLangName = 'English';
     let targetLangName = 'Japanese';
@@ -1282,6 +1345,11 @@
 
     // ── Bootstrap ──
     (async () => {
+      // Clear textboxes on page reload
+      inputText.value = '';
+      outputArea.innerHTML = '<span class="output-placeholder">Translation will appear here…</span>';
+      translatedText = '';
+
       const [configData, langData] = await Promise.all([
         fetch('/api/config').then(r => r.json()).catch(() => ({})),
         fetch('/api/languages').then(r => r.json()).catch(() => ({ languages: [], error: 'Failed to load languages' })),
@@ -1362,8 +1430,11 @@
 
     // ── Attachments ──
     imgBtn.addEventListener('click', () => imgInput.click());
+    // PDF support disabled - use text input directly for documents
+    // pdfBtn.addEventListener('click', () => pdfInput.click());
     audioBtn.addEventListener('click', () => audioInput.click());
     imgInput.addEventListener('change', () => handleFile(imgInput.files[0]));
+    // pdfInput.addEventListener('change', () => handleFile(pdfInput.files[0]));
     audioInput.addEventListener('change', () => handleFile(audioInput.files[0]));
 
     function handleFile(file) {
@@ -1378,17 +1449,112 @@
         const img = document.createElement('img'); img.src = url; inputPreview.appendChild(img);
       } else if (file.type.startsWith('audio/')) {
         const audio = document.createElement('audio'); audio.controls = true; audio.src = url; inputPreview.appendChild(audio);
+      } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        // PDF upload disabled - extract text directly from the browser using PDF.js
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            // Load PDF.js from CDN
+            const pdfjsLib = window.pdfjsLib || await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+            if (!window.pdfjsLib) window.pdfjsLib = pdfjsLib;
+
+            const pdfDocument = await pdfjsLib.getDocument({ data: reader.result }).promise;
+            const numPages = pdfDocument.numPages;
+            let extractedText = '';
+
+            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+              const page = await pdfDocument.getPage(pageNum);
+              const textContent = await page.getTextContent();
+              extractedText += (pageNum > 1 ? '\n' : '') + textContent.items.map(item => item.str).join(' ');
+              await page.cleanup();
+            }
+
+            // Store extracted text for translation
+            attachedFileText = extractedText;
+            attachedFileName = file.name;
+
+            // Show preview with page count
+            const div = document.createElement('div');
+            div.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '10px';
+            const span = document.createElement('span');
+            span.textContent = `${file.name} (${numPages} page${numPages > 1 ? 's' : ''})`;
+            div.appendChild(span);
+            inputPreview.appendChild(div);
+
+          } catch (err) {
+            console.error('PDF extraction failed:', err);
+            const div = document.createElement('div');
+            div.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '10px';
+            const span = document.createElement('span');
+            span.textContent = file.name + ' (error reading PDF)';
+            div.appendChild(span);
+            inputPreview.appendChild(div);
+          }
+        };
+        reader.readAsArrayBuffer(file);
       }
     }
 
+    // ── Clear attachment ──
     function clearAttachment() {
       attachedFile = null;
       fileChip.style.display = 'none';
       inputPreview.style.display = 'none';
       inputPreview.innerHTML = '';
       imgInput.value = '';
+      // pdfInput.value = '';  // PDF input disabled
       audioInput.value = '';
+      inputDropZone.classList.remove('drag-over');
     }
+
+    // ── Drag and Drop for Attachments ──
+    inputDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      inputDropZone.classList.add('drag-over');
+    });
+
+    inputDropZone.addEventListener('dragleave', () => {
+      inputDropZone.classList.remove('drag-over');
+    });
+
+    inputDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      inputDropZone.classList.remove('drag-over');
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFile(files[0]);
+      }
+    });
+
+    // Also allow dropping on textarea (when not in focus)
+    inputText.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      inputDropZone.classList.add('drag-over');
+    });
+
+    inputText.addEventListener('dragleave', (e) => {
+      // Only remove class if the drag is leaving the entire panel
+      if (!inputDropZone.contains(e.relatedTarget)) {
+        inputDropZone.classList.remove('drag-over');
+      }
+    });
+
+    inputText.addEventListener('drop', (e) => {
+      e.preventDefault();
+      inputDropZone.classList.remove('drag-over');
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFile(files[0]);
+      }
+    });
 
     removeFile.addEventListener('click', clearAttachment);
 
@@ -1432,7 +1598,13 @@
       formData.append('targetLangCode', pickers.target.value);
       formData.append('model', '');
       if (text) formData.append('text', text);
-      if (attachedFile) formData.append('file', attachedFile);
+      if (attachedFileText) {
+        // Send extracted PDF text
+        formData.append('text', attachedFileText);
+      } else if (attachedFile) {
+        // Send raw file for image/audio handling on server
+        formData.append('file', attachedFile);
+      }
 
       try {
         const res = await fetch('/api/translate', { method: 'POST', body: formData });
