@@ -1067,8 +1067,6 @@
               </svg>
               Image
             </button>
-            <!-- PDF upload disabled - client-side extraction via PDF.js is now the default for text -->
-            <!--
             <button class="attach-btn" id="pdfBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
@@ -1080,7 +1078,6 @@
               </svg>
               PDF
             </button>
-            -->
             <button class="attach-btn" id="audioBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
@@ -1167,10 +1164,7 @@
   </main>
 
   <input type="file" id="imgInput" accept="image/*" style="display:none" />
-  <!-- PDF input disabled - client-side extraction via PDF.js now handles PDF text -->
-  <!--
   <input type="file" id="pdfInput" accept="application/pdf" style="display:none" />
-  -->
   <input type="file" id="audioInput" accept="audio/*" style="display:none" />
   <div class="toast" id="toast"></div>
 
@@ -1203,9 +1197,6 @@
     const modelLoading = document.getElementById('modelLoading');
 
     let attachedFile = null;
-    // Store extracted PDF text and filename
-    let attachedFileText = '';
-    let attachedFileName = '';
 
     let translatedText = '';
     let sourceLangName = 'English';
@@ -1430,11 +1421,10 @@
 
     // ── Attachments ──
     imgBtn.addEventListener('click', () => imgInput.click());
-    // PDF support disabled - use text input directly for documents
-    // pdfBtn.addEventListener('click', () => pdfInput.click());
+    pdfBtn.addEventListener('click', () => pdfInput.click());
     audioBtn.addEventListener('click', () => audioInput.click());
     imgInput.addEventListener('change', () => handleFile(imgInput.files[0]));
-    // pdfInput.addEventListener('change', () => handleFile(pdfInput.files[0]));
+    pdfInput.addEventListener('change', () => handleFile(pdfInput.files[0]));
     audioInput.addEventListener('change', () => handleFile(audioInput.files[0]));
 
     function handleFile(file) {
@@ -1450,54 +1440,16 @@
       } else if (file.type.startsWith('audio/')) {
         const audio = document.createElement('audio'); audio.controls = true; audio.src = url; inputPreview.appendChild(audio);
       } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        // PDF upload disabled - extract text directly from the browser using PDF.js
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          try {
-            // Load PDF.js from CDN
-            const pdfjsLib = window.pdfjsLib || await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-            if (!window.pdfjsLib) window.pdfjsLib = pdfjsLib;
-
-            const pdfDocument = await pdfjsLib.getDocument({ data: reader.result }).promise;
-            const numPages = pdfDocument.numPages;
-            let extractedText = '';
-
-            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-              const page = await pdfDocument.getPage(pageNum);
-              const textContent = await page.getTextContent();
-              extractedText += (pageNum > 1 ? '\n' : '') + textContent.items.map(item => item.str).join(' ');
-              await page.cleanup();
-            }
-
-            // Store extracted text for translation
-            attachedFileText = extractedText;
-            attachedFileName = file.name;
-
-            // Show preview with page count
-            const div = document.createElement('div');
-            div.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-            div.style.display = 'flex';
-            div.style.alignItems = 'center';
-            div.style.gap = '10px';
-            const span = document.createElement('span');
-            span.textContent = `${file.name} (${numPages} page${numPages > 1 ? 's' : ''})`;
-            div.appendChild(span);
-            inputPreview.appendChild(div);
-
-          } catch (err) {
-            console.error('PDF extraction failed:', err);
-            const div = document.createElement('div');
-            div.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
-            div.style.display = 'flex';
-            div.style.alignItems = 'center';
-            div.style.gap = '10px';
-            const span = document.createElement('span');
-            span.textContent = file.name + ' (error reading PDF)';
-            div.appendChild(span);
-            inputPreview.appendChild(div);
-          }
-        };
-        reader.readAsArrayBuffer(file);
+        // PDF - show preview icon (server-side OCR will extract text)
+        const div = document.createElement('div');
+        div.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.gap = '10px';
+        const span = document.createElement('span');
+        span.textContent = file.name;
+        div.appendChild(span);
+        inputPreview.appendChild(div);
       }
     }
 
@@ -1508,7 +1460,7 @@
       inputPreview.style.display = 'none';
       inputPreview.innerHTML = '';
       imgInput.value = '';
-      // pdfInput.value = '';  // PDF input disabled
+      pdfInput.value = '';
       audioInput.value = '';
       inputDropZone.classList.remove('drag-over');
     }
@@ -1598,11 +1550,8 @@
       formData.append('targetLangCode', pickers.target.value);
       formData.append('model', '');
       if (text) formData.append('text', text);
-      if (attachedFileText) {
-        // Send extracted PDF text
-        formData.append('text', attachedFileText);
-      } else if (attachedFile) {
-        // Send raw file for image/audio handling on server
+      // Send raw file for OCR processing on server (image, audio, or PDF)
+      if (attachedFile) {
         formData.append('file', attachedFile);
       }
 

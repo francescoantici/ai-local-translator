@@ -4,6 +4,7 @@ const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require('fs');
+const { spawn } = require('child_process');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -14,6 +15,7 @@ app.use(express.json());
 const API_URL = process.env.OPENAI_API_URL || "https://api.openai.com";
 const API_KEY = process.env.OPENAI_API_KEY || "";
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+const OCR_MODEL = process.env.OCR_MODEL || DEFAULT_MODEL;
 const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE || "prompts/default_system_prompt";
 const SYSTEM_PROMPT_IMAGE_APPENDIX_FILE = process.env.SYSTEM_PROMPT_IMAGE_APPENDIX_FILE || "prompts/prompt_image_appendix";
 const SYSTEM_PROMPT_TEXT_APPENDIX_FILE = process.env.SYSTEM_PROMPT_TEXT_APPENDIX_FILE || "prompts/prompt_text_appendix";
@@ -69,77 +71,138 @@ app.get("/api/languages", (req, res) => {
   }
 });
 
-/*
-// PDF support disabled - client-side extraction via PDF.js now handles PDF text extraction
-async function pdfToImages(buffer, data_args, systemPrompt) {
+// OCR function to extract text from image or PDF using the OCR model
+async function ocrExtract(buffer, mimeType, data_args) {
   return new Promise((resolve, reject) => {
-    const { spawn } = require('child_process');
-    const pdfPath = path.join(__dirname, `tmp_${Date.now()}_${data_args.sourceLang}.pdf`);
-    fs.writeFileSync(pdfPath, buffer);
-
-    const outputDir = path.join(__dirname, `tmp_pdf_pages_${Date.now()}`);
-    fs.mkdirSync(outputDir, { recursive: true });
-
-    const child = spawn('pdftoppm', ['-png', pdfPath, path.join(outputDir, 'page')]);
-
-    let stderr = '';
-    child.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    const images = [];
-
-    child.on('close', async (code) => {
-      if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-
-      if (code !== 0) {
-        try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
-        reject(new Error(`PDF conversion failed: pdftoppm exited with code ${code}${stderr ? ': ' + stderr : ''}`));
-        return;
-      }
-
-      try {
-        const imageFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('.png'));
-        for (const imgFile of imageFiles) {
-          const imgBuffer = fs.readFileSync(path.join(outputDir, imgFile));
-          images.push(imgBuffer.toString('base64'));
-        }
-        fs.rmSync(outputDir, { recursive: true, force: true });
-      } catch (err) {
-        try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
-        reject(err);
-        return;
-      }
-
-      const textAppendix = fs.readFileSync(SYSTEM_PROMPT_IMAGE_APPENDIX_FILE, 'utf8');
-      const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
-        return data_args[key] !== undefined ? data_args[key] : match;
+    if (mimeType.startsWith("application/pdf") || mimeType === "pdf") {
+      // For PDF, first convert to images
+      pdfToImages(buffer, (err, imagePaths) => {
+        if (err) return reject(err);
+        ocrImages(imagePaths, data_args).then(resolve).catch(reject);
       });
-
-      const userContent = [
-        { type: "text", text: systemPrompt + "\n" + finalText }
-      ];
-
-      for (const imageBytes of images) {
-        userContent.push({
-          type: "image_url",
-          image_url: {
-            url: `data:image/png;base64,${imageBytes}`
-          }
-        });
-      }
-
-      resolve(userContent);
-    });
-
-    child.on('error', (err) => {
-      if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
-      reject(new Error(`PDF conversion failed: ${err.message}`));
-    });
+    } else if (mimeType.startsWith("image/")) {
+      // For images, use OCR model directly
+      const imageBytes = buffer.toString("base64");
+      queryOcrModelForImage(imageBytes, data_args).then(resolve).catch(reject);
+    } else {
+      reject(new Error(`Unsupported file type: ${mimeType}`));
+    }
   });
 }
-*/
+
+// Convert PDF pages to images using pdftoppm
+function pdfToImages(buffer, callback) {
+  const pdfPath = path.join(__dirname, `tmp_${Date.now()}.pdf`);
+  fs.writeFileSync(pdfPath, buffer);
+
+  const outputDir = path.join(__dirname, `tmp_pdf_pages_${Date.now()}`);
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const child = spawn('pdftoppm', ['-png', pdfPath, path.join(outputDir, 'page')]);
+
+  let stderr = '';
+  child.stderr.on('data', (data) => {
+    stderr += data.toString();
+  });
+
+  const imagePaths = [];
+
+  child.on('close', (code) => {
+    if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+
+    if (code !== 0) {
+      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+      return callback(new Error(`PDF conversion failed: pdftoppm exited with code ${code}${stderr ? ': ' + stderr : ''}`));
+    }
+
+    try {
+      const imageFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('.png'));
+      for (const imgFile of imageFiles) {
+        imagePaths.push(path.join(outputDir, imgFile));
+      }
+    } catch (err) {
+      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+      return callback(err);
+    }
+
+    // Clean up after image processing completes
+    setTimeout(() => {
+      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+    }, 1000);
+
+    callback(null, imagePaths);
+  });
+
+  child.on('error', (err) => {
+    if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+    try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+    callback(new Error(`PDF conversion failed: ${err.message}`));
+  });
+}
+
+// Query OCR model with image(s) to extract text
+async function ocrImages(imagePaths, data_args) {
+  const imageBytesList = [];
+  for (const imgPath of imagePaths) {
+    imageBytesList.push(fs.readFileSync(imgPath).toString("base64"));
+  }
+
+  return await queryOcrModelForImages(imageBytesList, data_args);
+}
+
+// Query OCR model with single image
+async function queryOcrModelForImage(imageBytes, data_args) {
+  return await queryOcrModelForImages([imageBytes], data_args);
+}
+
+// Query OCR model with multiple images
+async function queryOcrModelForImages(imageBytesList, data_args) {
+  const { default: fetch } = await import("node-fetch");
+
+  // Load OCR prompt appendix
+  const textAppendix = fs.readFileSync(SYSTEM_PROMPT_IMAGE_APPENDIX_FILE, 'utf8');
+  const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+    return data_args[key] !== undefined ? data_args[key] : match;
+  });
+
+  const userContent = [{ type: "text", text: finalText }];
+
+  for (const imageBytes of imageBytesList) {
+    userContent.push({
+      type: "image_url",
+      image_url: {
+        url: `data:image/png;base64,${imageBytes}`
+      }
+    });
+  }
+
+  const messages = [
+    { role: "system", content: finalText },
+    { role: "user", content: userContent }
+  ];
+
+  try {
+    const ocrRes = await fetch(`${API_URL}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify({ model: OCR_MODEL, messages, max_tokens: 100000 }),
+    });
+
+    if (!ocrRes.ok) {
+      const err = await ocrRes.text();
+      throw new Error(`OCR failed: ${err}`);
+    }
+
+    const data = await ocrRes.json();
+    return data.choices?.[0]?.message?.content || "";
+  } catch (err) {
+    console.error("OCR error:", err);
+    throw err;
+  }
+}
 
 app.post("/api/translate", upload.single("file"), async (req, res) => {
   try {
@@ -173,24 +236,35 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
       const mimeType = file.mimetype;
 
       if (mimeType.startsWith("image/")) {
-        // Image handling - use OpenAI multi-part format with image_url
-        const imageBytes = file.buffer.toString("base64");
-        const textAppendix = fs.readFileSync(SYSTEM_PROMPT_IMAGE_APPENDIX_FILE, 'utf8');
-        const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
-          return data_args[key] !== undefined ? data_args[key] : match;
-        });
-        userContent = [
-          { type: "text", text: systemPrompt + "\n" + finalText },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:${mimeType};base64,${imageBytes}`
-            }
-          }
-        ];
-      // PDF handling disabled - client-side extraction now handles PDF text extraction
+        // Image handling - use OCR model to extract text first
+        try {
+          const extractedText = await ocrExtract(file.buffer, mimeType, data_args);
+
+          // Load text appendix for extracted text
+          const textAppendix = fs.readFileSync(SYSTEM_PROMPT_TEXT_APPENDIX_FILE, 'utf8');
+          const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+            return data_args[key] !== undefined ? data_args[key] : match;
+          }).replace(/\$\{text\}/g, extractedText);
+
+          userContent = [{ type: "text", text: finalText }];
+        } catch (err) {
+          return res.status(500).json({ error: `OCR failed: ${err.message}` });
+        }
       } else if (mimeType.startsWith("application/pdf") || file.originalname.toLowerCase().endsWith(".pdf")) {
-        return res.status(400).json({ error: "PDF upload disabled. Please extract text from the PDF and paste it into the text field." });
+        // PDF handling - use OCR model to extract text first
+        try {
+          const extractedText = await ocrExtract(file.buffer, mimeType, data_args);
+
+          // Load text appendix for extracted text
+          const textAppendix = fs.readFileSync(SYSTEM_PROMPT_TEXT_APPENDIX_FILE, 'utf8');
+          const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+            return data_args[key] !== undefined ? data_args[key] : match;
+          }).replace(/\$\{text\}/g, extractedText);
+
+          userContent = [{ type: "text", text: finalText }];
+        } catch (err) {
+          return res.status(500).json({ error: `OCR failed: ${err.message}` });
+        }
       } else if (mimeType.startsWith("audio/")) {
         // Audio handling - transcribe first
         const FormData = (await import("form-data")).default;
