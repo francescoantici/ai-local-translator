@@ -1,11 +1,11 @@
 # AI Local Translator
 
-A Google Translate–style web app powered by any OpenAI-compatible API.
+An AI powered Translator web app powered by any OpenAI-compatible API.
 
 ## Features
 - Translate between user selected languages
 - Paste text or type directly
-- Attach **images** (AI extracts and translates visible text)
+- Attach **images** (AI transcribes visible text via ocr and translate it)
 - Attach **audio** (transcribed via Whisper if available, then translated)
 - Works with any OpenAI-compatible endpoint (OpenAI, Azure OpenAI, Groq, Ollama, etc.)
 
@@ -24,7 +24,8 @@ A Google Translate–style web app powered by any OpenAI-compatible API.
    ```env
    OPENAI_API_URL=https://api.openai.com   # or your custom endpoint
    OPENAI_API_KEY=sk-...                   # your API key
-   OPENAI_MODEL=gpt-4o                     # optional, default model to use
+   OCR_MODEL=glm-ocr                       # ocr model to use to extract text from images
+   OPENAI_MODEL=gpt-4o                     # default model to use
    PORT=3000                               # optional, default 3000
    BASE_PATH=/<base_path>                  # optional, path to serve the index file to
    ```
@@ -44,6 +45,7 @@ A Google Translate–style web app powered by any OpenAI-compatible API.
 | `OPENAI_API_KEY` | ✅ | — | Your API key |
 | `OPENAI_API_URL` | ✅ | `https://api.openai.com` | Base URL of OpenAI-compatible API |
 | `OPENAI_MODEL` | ✅ | `gpt-4o` | Model name to use for translation |
+| `OCR_MODEL` | ✅ | `glm-ocr` | Model name to use for translation |
 | `PORT` | ❌ | `3000` | Port for the web server |
 
 ## Compatible APIs

@@ -15,7 +15,7 @@ app.use(express.json());
 const API_URL = process.env.OPENAI_API_URL || "https://api.openai.com";
 const API_KEY = process.env.OPENAI_API_KEY || "";
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
-const OCR_MODEL = process.env.OCR_MODEL || DEFAULT_MODEL;
+const OCR_MODEL = process.env.OCR_MODEL || "glm-ocr";
 const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE || "prompts/default_system_prompt";
 const SYSTEM_PROMPT_IMAGE_APPENDIX_FILE = process.env.SYSTEM_PROMPT_IMAGE_APPENDIX_FILE || "prompts/prompt_image_appendix";
 const SYSTEM_PROMPT_TEXT_APPENDIX_FILE = process.env.SYSTEM_PROMPT_TEXT_APPENDIX_FILE || "prompts/prompt_text_appendix";
@@ -111,7 +111,7 @@ function pdfToImages(buffer, callback) {
     if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
 
     if (code !== 0) {
-      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) { }
       return callback(new Error(`PDF conversion failed: pdftoppm exited with code ${code}${stderr ? ': ' + stderr : ''}`));
     }
 
@@ -121,13 +121,13 @@ function pdfToImages(buffer, callback) {
         imagePaths.push(path.join(outputDir, imgFile));
       }
     } catch (err) {
-      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) { }
       return callback(err);
     }
 
     // Clean up after image processing completes
     setTimeout(() => {
-      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+      try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) { }
     }, 1000);
 
     callback(null, imagePaths);
@@ -135,7 +135,7 @@ function pdfToImages(buffer, callback) {
 
   child.on('error', (err) => {
     if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-    try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (e) { }
     callback(new Error(`PDF conversion failed: ${err.message}`));
   });
 }
@@ -352,6 +352,185 @@ app.get(BASE_PATH, (_req, res) => {
 });
 
 app.use(BASE_PATH, express.static(path.join(__dirname, "public")));
+
+// Download file from Slack URL using OAuth token
+async function downloadSlackFile(url) {
+  const { default: fetch } = await import("node-fetch");
+  const slackToken = process.env.SLACK_OAUTH_TOKEN;
+
+  if (!slackToken) {
+    throw new Error("SLACK_OAUTH_TOKEN environment variable not set");
+  }
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${slackToken}` }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Slack file download failed: ${res.status} ${res.statusText}`);
+  }
+
+  return await res.buffer();
+}
+
+// Process text and files for translation (reusable from translate endpoint)
+async function processTranslationInput({ sourceLang, targetLang, text, files, model }) {
+  const MODEL = model || DEFAULT_MODEL;
+  const data_args = { sourceLang, targetLang };
+
+  // Load base system prompt
+  let systemPrompt = fs.readFileSync(SYSTEM_PROMPT_FILE, 'utf8').replace(/\$\{([^}]+)\}/g, (match, key) => {
+    return data_args[key] !== undefined ? data_args[key] : match;
+  });
+
+  // Process text and files separately, then combine
+  let combinedText = "";
+
+  if (text) {
+    const textAppendix = fs.readFileSync(SYSTEM_PROMPT_TEXT_APPENDIX_FILE, 'utf8');
+    const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+      return data_args[key] !== undefined ? data_args[key] : match;
+    }).replace(/\$\{text\}/g, text);
+    combinedText = finalText;
+  }
+
+  // Process each file
+  for (const file of files || []) {
+    const mimeType = file.mimetype;
+
+    try {
+      let extractedText = "";
+
+      if (mimeType.startsWith("image/") || mimeType.startsWith("application/pdf") ||
+        file.name.toLowerCase().endsWith(".pdf")) {
+        // Download the file from Slack if it's a URL
+        let buffer;
+        if (file.url_private_download || file.url_private) {
+          const downloadUrl = file.url_private_download || file.url_private;
+          buffer = await downloadSlackFile(downloadUrl);
+        } else {
+          throw new Error("No valid file URL provided");
+        }
+
+        extractedText = await ocrExtract(buffer, mimeType, data_args);
+      } else if (mimeType.startsWith("audio/")) {
+        let buffer;
+        if (file.url_private_download || file.url_private) {
+          const downloadUrl = file.url_private_download || file.url_private;
+          buffer = await downloadSlackFile(downloadUrl);
+        } else {
+          throw new Error("No valid file URL provided");
+        }
+
+        const FormData = (await import("form-data")).default;
+        const { default: fetch } = await import("node-fetch");
+        const formData = new FormData();
+        formData.append("file", buffer, { filename: file.name || "audio", contentType: mimeType });
+        formData.append("model", "whisper-1");
+
+        const whisperRes = await fetch(`${API_URL}/v1/audio/transcriptions`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${API_KEY}`, ...formData.getHeaders() },
+          body: formData,
+        });
+
+        if (!whisperRes.ok) {
+          const err = await whisperRes.text();
+          throw new Error(`Audio transcription failed: ${err}`);
+        }
+
+        const whisperData = await whisperRes.json();
+        extractedText = whisperData.text || "";
+      } else {
+        throw new Error(`Unsupported file type: ${mimeType}`);
+      }
+
+      // Load text appendix for extracted content
+      const textAppendix = fs.readFileSync(SYSTEM_PROMPT_TEXT_APPENDIX_FILE, 'utf8');
+      const finalText = textAppendix.replace(/\$\{([^}]+)\}/g, (match, key) => {
+        return data_args[key] !== undefined ? data_args[key] : match;
+      }).replace(/\$\{text\}/g, extractedText);
+
+      combinedText = (combinedText ? combinedText + "\n\n" : "") + finalText;
+    } catch (err) {
+      console.error(`Error processing file ${file.name}:`, err);
+      throw err;
+    }
+  }
+
+  // Format request using standard OpenAI format with system and user messages
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: [{ type: "text", text: combinedText }] }
+  ];
+
+  const { default: fetch } = await import("node-fetch");
+  const apiRes = await fetch(`${API_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+    body: JSON.stringify({ model: MODEL, messages, max_tokens: 100000 }),
+  });
+
+  if (!apiRes.ok) {
+    const err = await apiRes.text();
+    throw new Error(`API error: ${err}`);
+  }
+
+  const data = await apiRes.json();
+  return { translation: data.choices?.[0]?.message?.content || "", model: MODEL };
+}
+
+// Translate to English endpoint
+app.post("/api/translate-to-english", async (req, res) => {
+  try {
+    const { message, model } = req.body;
+    const text = message?.text || "";
+    const files = message?.files || [];
+
+    if (!text && (!files || files.length === 0)) {
+      return res.status(400).json({ error: "No content provided for translation." });
+    }
+
+    const result = await processTranslationInput({
+      sourceLang: "Japanese",
+      targetLang: "English",
+      text,
+      files,
+      model
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Translate to English error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Translate to Japanese endpoint
+app.post("/api/translate-to-japanese", async (req, res) => {
+  try {
+    const { message, model } = req.body;
+    const text = message?.text || "";
+    const files = message?.files || [];
+
+    if (!text && (!files || files.length === 0)) {
+      return res.status(400).json({ error: "No content provided for translation." });
+    }
+
+    const result = await processTranslationInput({
+      sourceLang: "English",
+      targetLang: "Japanese",
+      text,
+      files,
+      model
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Translate to Japanese error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Translator running on http://localhost:${PORT}${BASE_PATH}`));
