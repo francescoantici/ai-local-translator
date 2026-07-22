@@ -38,6 +38,10 @@ function fetchLanguages() {
 // Pre-warm cache on startup
 languageCache = fetchLanguages();
 
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 app.get("/api/config", (req, res) => {
   res.json({ configured: !!API_KEY, defaultModel: DEFAULT_MODEL, apiUrl: API_URL });
 });
