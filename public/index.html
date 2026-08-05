@@ -1326,12 +1326,6 @@
       const tc = pickers.target.value, tn = pickers.target.name;
       selectLang(pickers.source, tc, tn);
       selectLang(pickers.target, sc, sn);
-      if (translatedText) {
-        inputText.value = translatedText;
-        updateCharCount();
-        outputArea.innerHTML = '<span class="output-placeholder">Translation will appear here…</span>';
-        translatedText = '';
-      }
     });
 
     // ── Bootstrap ──
