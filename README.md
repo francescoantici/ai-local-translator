@@ -26,6 +26,7 @@ An AI powered Translator web app powered by any OpenAI-compatible API.
    OPENAI_API_KEY=sk-...                   # your API key
    OCR_MODEL=glm-ocr                       # ocr model to use to extract text from images
    OPENAI_MODEL=gpt-4o                     # default model to use
+   WHISPER_MODEL=whisper-1                   # model for audio transcription 
    PORT=3000                               # optional, default 3000
    BASE_PATH=/<base_path>                  # optional, path to serve the index file to
    ```
@@ -45,7 +46,8 @@ An AI powered Translator web app powered by any OpenAI-compatible API.
 | `OPENAI_API_KEY` | ✅ | — | Your API key |
 | `OPENAI_API_URL` | ✅ | `https://api.openai.com` | Base URL of OpenAI-compatible API |
 | `OPENAI_MODEL` | ✅ | `gpt-4o` | Model name to use for translation |
-| `OCR_MODEL` | ✅ | `glm-ocr` | Model name to use for translation |
+| `OCR_MODEL` | ✅ | `glm-ocr` | Model name to use for image ocr |
+| `WHISPER_MODEL` | ✅ | `whisper-1` | Model name to use for audio transcription |
 | `PORT` | ❌ | `3000` | Port for the web server |
 
 ## Compatible APIs
@@ -56,4 +58,3 @@ An AI powered Translator web app powered by any OpenAI-compatible API.
 - **LM Studio** — `http://localhost:1234`
 - **Together AI**, **Mistral**, **Anyscale**, etc.
 
-> **Note:** Audio transcription uses the `/v1/audio/transcriptions` endpoint (Whisper). Not all providers support this — if your provider doesn't, use text or image input instead.

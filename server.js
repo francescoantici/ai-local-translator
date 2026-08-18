@@ -16,6 +16,7 @@ const API_URL = process.env.OPENAI_API_URL || "https://api.openai.com";
 const API_KEY = process.env.OPENAI_API_KEY || "";
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 const OCR_MODEL = process.env.OCR_MODEL || "glm-ocr";
+const WHISPER_MODEL = process.env.WHISPER_MODEL || "whisper-1";
 const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE || "prompts/default_system_prompt";
 const SYSTEM_PROMPT_IMAGE_APPENDIX_FILE = process.env.SYSTEM_PROMPT_IMAGE_APPENDIX_FILE || "prompts/prompt_image_appendix";
 const SYSTEM_PROMPT_TEXT_APPENDIX_FILE = process.env.SYSTEM_PROMPT_TEXT_APPENDIX_FILE || "prompts/prompt_text_appendix";
@@ -275,7 +276,7 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
         const { default: fetch } = await import("node-fetch");
         const formData = new FormData();
         formData.append("file", file.buffer, { filename: file.originalname, contentType: mimeType });
-        formData.append("model", "whisper-1");
+        formData.append("model", WHISPER_MODEL);
         if (sourceLangCode) formData.append("language", sourceLangCode);
 
         const whisperRes = await fetch(`${API_URL}/v1/audio/transcriptions`, {
@@ -430,7 +431,7 @@ async function processTranslationInput({ sourceLang, targetLang, text, files, mo
         const { default: fetch } = await import("node-fetch");
         const formData = new FormData();
         formData.append("file", buffer, { filename: file.name || "audio", contentType: mimeType });
-        formData.append("model", "whisper-1");
+        formData.append("model", WHISPER_MODEL);
 
         const whisperRes = await fetch(`${API_URL}/v1/audio/transcriptions`, {
           method: "POST",

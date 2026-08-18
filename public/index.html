@@ -744,6 +744,179 @@
       height: 12px;
     }
 
+    /* ─── Audio Recording Controls ─── */
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ─── Audio Menu Dropdown ─── */
+    .audio-menu {
+      position: relative;
+    }
+
+    .audio-menu-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: var(--white);
+      border: 1px solid var(--gray-20);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--gray-60);
+      transition: all 0.15s;
+    }
+
+    .audio-menu-btn:hover {
+      border-color: var(--red);
+      color: var(--red);
+      background: var(--red-light);
+    }
+
+    .audio-menu-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .audio-menu-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      width: 140px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-20);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      z-index: 100;
+      overflow: hidden;
+      display: none;
+    }
+
+    .audio-menu-dropdown.open {
+      display: block;
+    }
+
+    .audio-menu-item {
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.1s;
+    }
+
+    .audio-menu-item:hover {
+      background: var(--red-light);
+    }
+
+    .audio-menu-item svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .audio-menu-separator {
+      height: 1px;
+      background: var(--gray-20);
+      margin: 4px 0;
+    }
+
+    .audio-recording-ui {
+      display: none;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .audio-recording-ui.active {
+      display: flex;
+    }
+
+    .recording-btn {
+      position: relative;
+    }
+
+    .recording-btn.recording {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .recording-btn.recording svg {
+      fill: var(--red);
+    }
+
+    .record-text {
+      margin-left: 6px;
+    }
+
+    .audio-visualizer {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 24px;
+    }
+
+    .audio-visualizer.active {
+      display: flex;
+    }
+
+    .bar {
+      width: 3px;
+      background: var(--gray-40);
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+    .bar:nth-child(2) { height: 10px; animation-delay: 0.1s; }
+    .bar:nth-child(3) { height: 14px; animation-delay: 0.2s; }
+    .bar:nth-child(4) { height: 10px; animation-delay: 0.3s; }
+    .bar:nth-child(5) { height: 6px; animation-delay: 0.4s; }
+
+    .recording-btn.recording + .audio-visualizer.active .bar {
+      animation: soundWave 0.6s ease-in-out infinite;
+    }
+
+    .recording-btn.recording + .audio-visualizer.active .bar:nth-child(1) { animation-duration: 0.5s; }
+    .recording-btn.recording + .audio-visualizer.active .bar:nth-child(2) { animation-duration: 0.6s; }
+    .recording-btn.recording + .audio-visualizer.active .bar:nth-child(3) { animation-duration: 0.4s; }
+    .recording-btn.recording + .audio-visualizer.active .bar:nth-child(4) { animation-duration: 0.7s; }
+    .recording-btn.recording + .audio-visualizer.active .bar:nth-child(5) { animation-duration: 0.5s; }
+
+    @keyframes soundWave {
+      0%, 100% { height: 6px; background: var(--gray-40); }
+      50% { height: 18px; background: var(--red); }
+    }
+
+    .stop-record-btn {
+      color: var(--red);
+      border-color: var(--gray-20);
+    }
+
+    .stop-record-btn:hover {
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    .recording-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      color: var(--red);
+    }
+
+    .recording-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--red);
+      border-radius: 50%;
+    }
+
     .file-chip {
       display: flex;
       align-items: center;
@@ -1078,13 +1251,54 @@
               </svg>
               PDF
             </button>
-            <button class="attach-btn" id="audioBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
-              </svg>
-              Audio
-            </button>
+            <div class="audio-controls">
+              <div class="audio-menu" id="audioMenu">
+                <button class="attach-btn audio-menu-btn" id="audioBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
+                  </svg>
+                  Audio
+                </button>
+                <div class="audio-menu-dropdown" id="audioMenuDropdown">
+                  <div class="audio-menu-item" id="uploadAudioItem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Upload audio
+                  </div>
+                  <div class="audio-menu-separator"></div>
+                  <div class="audio-menu-item" id="recordAudioItem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    Record audio
+                  </div>
+                </div>
+              </div>
+              <div class="audio-recording-ui" id="audioRecordingUI">
+                <button class="attach-btn recording-btn" id="recordBtn" title="Record audio">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10" />
+                  </svg>
+                  <span class="record-text">Record</span>
+                </button>
+                <div class="audio-visualizer" id="audioVisualizer">
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                </div>
+                <button class="attach-btn" id="stopRecordBtn" title="Stop recording">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
             <div class="file-chip" id="fileChip" style="display:none;">
               <span id="fileName"></span>
               <span class="remove" id="removeFile">✕</span>
@@ -1193,10 +1407,18 @@
     const pdfInput = document.getElementById('pdfInput');
     const audioInput = document.getElementById('audioInput');
     const inputDropZone = document.getElementById('inputDropZone');
+
+    // Audio recording elements
+    const audioRecordingUI = document.getElementById('audioRecordingUI');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopRecordBtn = document.getElementById('stopRecordBtn');
+    const audioVisualizer = document.getElementById('audioVisualizer');
     // const modelSelect   = document.getElementById('modelSelect');
     const modelLoading = document.getElementById('modelLoading');
 
     let attachedFile = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
 
     let translatedText = '';
     let sourceLangName = 'English';
@@ -1414,12 +1636,132 @@
     });
 
     // ── Attachments ──
-    imgBtn.addEventListener('click', () => imgInput.click());
-    pdfBtn.addEventListener('click', () => pdfInput.click());
-    audioBtn.addEventListener('click', () => audioInput.click());
+    imgBtn.addEventListener('click', () => {
+      imgInput.click();
+      clearAudioUI();
+      closeAudioMenu();
+    });
+    pdfBtn.addEventListener('click', () => {
+      pdfInput.click();
+      clearAudioUI();
+      closeAudioMenu();
+    });
+
+    // Audio menu dropdown
+    const audioMenu = document.getElementById('audioMenu');
+    const audioMenuBtn = document.getElementById('audioBtn');
+    const audioMenuDropdown = document.getElementById('audioMenuDropdown');
+    const uploadAudioItem = document.getElementById('uploadAudioItem');
+    const recordAudioItem = document.getElementById('recordAudioItem');
+
+    function openAudioMenu() {
+      closePicker(pickers.source);
+      closePicker(pickers.target);
+      audioMenuDropdown.classList.add('open');
+    }
+
+    function closeAudioMenu() {
+      audioMenuDropdown.classList.remove('open');
+    }
+
+    function toggleAudioMenu() {
+      const isOpen = audioMenuDropdown.classList.contains('open');
+      if (isOpen) {
+        closeAudioMenu();
+      } else {
+        openAudioMenu();
+      }
+    }
+
+    audioMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleAudioMenu();
+    });
+
+    uploadAudioItem.addEventListener('click', () => {
+      audioInput.click();
+      closeAudioMenu();
+    });
+
+    recordAudioItem.addEventListener('click', () => {
+      showAudioRecordingUI();
+      closeAudioMenu();
+    });
+
+    document.addEventListener('click', () => {
+      closePicker(pickers.source);
+      closePicker(pickers.target);
+      closeAudioMenu();
+    });
+
     imgInput.addEventListener('change', () => handleFile(imgInput.files[0]));
     pdfInput.addEventListener('change', () => handleFile(pdfInput.files[0]));
     audioInput.addEventListener('change', () => handleFile(audioInput.files[0]));
+
+    // ── Audio Recording ──
+    recordBtn.addEventListener('click', startRecording);
+    stopRecordBtn.addEventListener('click', stopRecording);
+
+    function showAudioRecordingUI() {
+      clearAttachment();
+      audioRecordingUI.classList.add('active');
+      recordBtn.style.display = 'flex';
+    }
+
+    function clearAudioUI() {
+      audioRecordingUI.classList.remove('active');
+      recordBtn.classList.remove('recording');
+      stopRecordBtn.style.display = 'none';
+      audioVisualizer.classList.remove('active');
+    }
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          if (audioChunks.length === 0) {
+            showToast('No audio recorded. Please try again.');
+            console.warn('Recording stopped but no chunks collected');
+            clearAudioUI();
+            return;
+          }
+
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioFile = new File([audioBlob], "recording.webm", { type: 'audio/webm' });
+          console.log('Recording complete, file size:', audioFile.size, 'bytes');
+          handleFile(audioFile);
+          // Stop all tracks to release microphone
+          stream.getTracks().forEach(track => track.stop());
+          clearAudioUI();
+        };
+
+        mediaRecorder.start(100); // Collect chunks every 100ms
+        recordBtn.classList.add('recording');
+        stopRecordBtn.style.display = 'flex';
+        audioVisualizer.classList.add('active');
+
+        // Auto-stop after 5 minutes (300 seconds)
+        setTimeout(stopRecording, 300000);
+      } catch (err) {
+        showToast('Microphone access denied: ' + err.message);
+        console.error('Recording error:', err);
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    }
 
     function handleFile(file) {
       if (!file) return;
@@ -1457,6 +1799,7 @@
       pdfInput.value = '';
       audioInput.value = '';
       inputDropZone.classList.remove('drag-over');
+      clearAudioUI();
     }
 
     // ── Drag and Drop for Attachments ──
