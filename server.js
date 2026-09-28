@@ -53,7 +53,20 @@ const httpRequestDuration = new client.Histogram({
   buckets: [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0],
 });
 
+// Endpoints excluded from metrics (metrics scraping itself, health probes)
+const metricsIgnoredEndpoints = new Set(["/metrics", "/health", "/healthz"]);
+
+function isMetricsIgnored(req) {
+  if (metricsIgnoredEndpoints.has(req.path)) return true;
+  if (BASE_PATH !== "/" && req.path.startsWith(`${BASE_PATH}/`)) {
+    return metricsIgnoredEndpoints.has(req.path.slice(BASE_PATH.length) || "/");
+  }
+  return false;
+}
+
 const metricsMiddleware = (req, res, next) => {
+  if (isMetricsIgnored(req)) return next();
+
   const start = process.hrtime.bigint();
   const labels0 = { method: req.method, endpoint: normalizeEndpoint(req) };
   httpRequestCreated.inc(labels0);
