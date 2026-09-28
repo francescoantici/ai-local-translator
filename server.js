@@ -23,30 +23,30 @@ function normalizeEndpoint(req) {
   return p || "/";
 }
 
-const flaskExporterInfo = new client.Gauge({
-  name: "flask_exporter_info",
+const exporterInfo = new client.Gauge({
+  name: "exporter_info",
   help: "Information about the metrics exporter",
   registers: [register],
   labelNames: ["version"],
 });
-flaskExporterInfo.set({ version: "prom-client-adapter" }, 1);
+exporterInfo.set({ version: "prom-client-adapter" }, 1);
 
 const httpRequestCreated = new client.Counter({
-  name: "flask_http_request_created",
+  name: "http_request_created",
   help: "Total number of HTTP requests received",
   registers: [register],
   labelNames: ["method", "endpoint"],
 });
 
 const httpRequestTotal = new client.Counter({
-  name: "flask_http_request_total",
+  name: "http_request_total",
   help: "Total number of HTTP requests completed",
   registers: [register],
   labelNames: ["method", "endpoint", "status"],
 });
 
 const httpRequestDuration = new client.Histogram({
-  name: "flask_http_request_duration_seconds",
+  name: "http_request_duration_seconds",
   help: "Duration of HTTP requests in seconds",
   registers: [register],
   labelNames: ["method", "endpoint", "status"],
