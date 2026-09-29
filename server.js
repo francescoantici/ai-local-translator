@@ -9,8 +9,100 @@ const { spawn } = require('child_process');
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
+const BASE_PATH = process.env.BASE_PATH || "/home";
+
+// ── Prometheus metrics (equivalent of prometheus-flask-exporter) ──
+const client = require("prom-client");
+const register = new client.Registry();
+
+function normalizeEndpoint(req) {
+  // Normalize route: strip BASE_PATH prefix and merge dynamic segments
+  let p = req.baseUrl + req.route ? `${req.baseUrl}${req.route?.path || ""}` : req.path;
+  if (!p) p = req.path;
+  if (BASE_PATH !== "/" && p.startsWith(BASE_PATH)) p = p.slice(BASE_PATH.length) || "/";
+  return p || "/";
+}
+
+const exporterInfo = new client.Gauge({
+  name: "exporter_info",
+  help: "Information about the metrics exporter",
+  registers: [register],
+  labelNames: ["version"],
+});
+exporterInfo.set({ version: "prom-client-adapter" }, 1);
+
+const httpRequestCreated = new client.Counter({
+  name: "http_request_created",
+  help: "Total number of HTTP requests received",
+  registers: [register],
+  labelNames: ["method", "endpoint"],
+});
+
+const httpRequestTotal = new client.Counter({
+  name: "http_request_total",
+  help: "Total number of HTTP requests completed",
+  registers: [register],
+  labelNames: ["method", "endpoint", "status"],
+});
+
+const httpRequestDuration = new client.Histogram({
+  name: "http_request_duration_seconds",
+  help: "Duration of HTTP requests in seconds",
+  registers: [register],
+  labelNames: ["method", "endpoint", "status"],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0],
+});
+
+// Endpoints excluded from metrics (metrics scraping itself, health probes)
+const metricsIgnoredEndpoints = new Set(["/metrics", "/health", "/healthz"]);
+
+function isMetricsIgnored(req) {
+  if (metricsIgnoredEndpoints.has(req.path)) return true;
+  if (BASE_PATH !== "/" && req.path.startsWith(`${BASE_PATH}/`)) {
+    return metricsIgnoredEndpoints.has(req.path.slice(BASE_PATH.length) || "/");
+  }
+  return false;
+}
+
+const metricsMiddleware = (req, res, next) => {
+  if (isMetricsIgnored(req)) return next();
+
+  const start = process.hrtime.bigint();
+  const labels0 = { method: req.method, endpoint: normalizeEndpoint(req) };
+  httpRequestCreated.inc(labels0);
+
+  res.on("finish", () => {
+    const dur = Number(process.hrtime.bigint() - start) / 1e9;
+    const labels = { method: req.method, endpoint: labels0.endpoint, status: String(res.statusCode) };
+    httpRequestTotal.inc(labels);
+    httpRequestDuration.observe(labels, dur);
+  });
+
+  next();
+};
+// ── end metrics block ──
+
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*", methods: ["GET", "POST"] }));
 app.use(express.json());
+app.use(metricsMiddleware);
+
+// Prometheus metrics endpoints
+app.get(`${BASE_PATH === "/" ? "" : BASE_PATH}/metrics`, async (req, res) => {
+  try {
+    res.set("Content-Type", register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(err.message);
+  }
+});
+app.get("/metrics", async (req, res) => {
+  try {
+    res.set("Content-Type", register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(err.message);
+  }
+});
 
 const API_URL = process.env.OPENAI_API_URL || "https://api.openai.com";
 const API_KEY = process.env.OPENAI_API_KEY || "";
@@ -38,6 +130,10 @@ function fetchLanguages() {
 
 // Pre-warm cache on startup
 languageCache = fetchLanguages();
+
+app.get("/healthz", (req, res) => {
+  res.status(200).end();
+});
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -336,8 +432,6 @@ app.post("/api/translate", upload.single("file"), async (req, res) => {
   }
 });
 
-
-const BASE_PATH = process.env.BASE_PATH || "/home";
 
 // Redirect root to base path
 if (BASE_PATH !== "/") {
